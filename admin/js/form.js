@@ -105,7 +105,7 @@
         else if (p.state === 'done') h += '<div class="upl">' + (p.url ? '<img class="upl-prev" src="' + esc(p.url) + '" alt="Прев’ю: ' + esc(p.name) + '">' : '<span class="thumb t3 upl-prev" role="img" aria-label="Прев’ю фото"></span>') +
           '<div class="upl-body"><span class="upl-name">' + esc(p.name) + '</span><span class="hint" style="font-size:12px">' + esc(p.meta || 'Фото') + '</span><div class="upl-actions">' + fileIn('Замінити') +
           '<button class="btn btn-ghost btn-sm btn-danger-text" type="button" data-act="photo-x" data-f="' + f.id + '">Видалити</button></div></div></div>';
-        else h += '<div class="upl upl-err"><div class="dz-ico" style="background:#fff;color:#B42318">' + icon('err') + '</div><div class="upl-body"><span class="upl-name">' + esc(p.name) + '</span><span class="hint" style="font-size:12px">' + esc(p.meta || '') + ' · не завантажено</span></div>' + fileIn('Обрати інший файл') + '</div>';
+        else h += '<div class="upl upl-err"><div class="dz-ico" style="background:#fff;color:#B42318">' + icon('err') + '</div><div class="upl-body"><span class="upl-name">' + esc(p.name) + '</span><span class="hint" style="font-size:12px">' + esc(p.meta || '') + ' · не завантажено</span>' + (p.msg ? '<span class="err" role="alert">' + icon('err', 'i-sm') + esc(p.msg) + '</span>' : '') + '</div>' + fileIn('Обрати інший файл') + '</div>';
         h += '<div class="below" id="d-' + f.id + '">' + (err ? '<span class="err">' + icon('err', 'i-sm') + esc(err) + '</span>' : '') + '</div>';
         if (f.author !== false || f.caption) {
           h += '<div class="photo-sub">';
@@ -183,6 +183,7 @@
       A.shrink(file).then(function (blob) { return window.THStorage.uploadImage(blob, file.name); }).then(function (url) {
         st.vals[f.id] = url; st.photo[f.id] = { state: 'done', url: url, name: file.name, meta: ext + ' · ' + size }; render();
       }, function (e) {
+        if (e && e.detail) console.warn('[TAKE HIGH] завантаження фото:', e.message, e.detail);
         st.photo[f.id] = { state: 'error', name: file.name, meta: ext + ' · ' + size, msg: (e && e.message) || 'Не вдалося завантажити' }; render();
       });
     }
