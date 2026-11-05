@@ -45,6 +45,10 @@
       var summary = (j && (j.error_summary || '')) || t;
       if (r.status === 409 && /conflict/.test(summary)) throw StoreError('conflict', 'Дані вже змінив хтось інший', summary);
       if (r.status === 409 && /not_found/.test(summary)) throw StoreError('not_found', 'Файл даних ще не створено', summary);
+      if (/missing_scope|required scope/i.test(summary)) {
+        var sc = (j && j.error && j.error.required_scope) || (summary.match(/required[_ ]scope\W+([a-z.]+)/i) || [])[1] || '';
+        throw StoreError('scope', 'У застосунку Dropbox не ввімкнено дозвіл ' + (sc || '(див. консоль)') + '. Увімкніть його на вкладці Permissions і отримайте refresh token заново', summary);
+      }
       if (r.status === 401) { token = null; throw StoreError('auth', 'Dropbox не прийняв ключі доступу', summary); }
       if (r.status === 429) throw StoreError('rate', 'Забагато запитів до Dropbox, спробуйте за хвилину', summary);
       throw StoreError('dropbox', what + ': помилка Dropbox ' + r.status, summary);
@@ -115,13 +119,14 @@
       if (!r.ok) return dbxErr(r, 'Завантаження фото');
       return r.json();
     }).then(function (meta) {
-      return rpc('sharing/create_shared_link_with_settings', { path: meta.path_lower, settings: { requested_visibility: 'public' } })
+      return rpc('sharing/create_shared_link_with_settings', { path: meta.path_lower })
         .then(function (r) {
           if (r.ok) return r.json().then(function (j) { return rawLink(j.url); });
           return r.text().then(function (t) {
             var j = null; try { j = JSON.parse(t); } catch (e) {}
             var ex = j && j.error && j.error.shared_link_already_exists && j.error.shared_link_already_exists.metadata;
             if (ex && ex.url) return rawLink(ex.url);
+            if (/missing_scope|required scope/i.test(t)) throw StoreError('scope', 'У застосунку Dropbox не ввімкнено дозвіл sharing.write. Увімкніть його на вкладці Permissions і отримайте refresh token заново', t);
             throw StoreError('share', 'Фото завантажено, але Dropbox не дав публічне посилання', t);
           });
         });
