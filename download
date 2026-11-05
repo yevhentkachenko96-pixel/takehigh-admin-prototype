@@ -1,0 +1,4 @@
+# ключі доступу — лише локально; на Pages створюються з секретів GitHub
+config.js
+.DS_Store
+node_modules/
