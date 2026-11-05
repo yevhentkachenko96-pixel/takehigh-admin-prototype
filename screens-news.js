@@ -1,0 +1,122 @@
+/* Екрани: Новини, картка новини, Теги, картка тегу */
+(function () {
+  'use strict';
+  var A = window.A;
+  A.screens = A.screens || {};
+
+  var SECTIONS = ['Performance', 'Club', 'Media', 'Partnerships', 'Access'];
+  var TYPES = ['Session Report', 'Team Update', 'Technical', 'Announcement', 'Feature', 'In Pictures', 'Media Release', 'Partner Update'];
+  var memberName = function (id) { var m = A.data.members.find(function (x) { return x.id === id; }); return m ? m.name : id; };
+  var memberId = function (name) { var m = A.data.members.find(function (x) { return x.name === name; }); return m ? m.id : name; };
+
+  A.screens.news = function (root) {
+    return A.list(root, {
+      title: 'Новини', addLabel: 'Додати новину', addHref: '#/news/new',
+      note: 'Зірочка на фото — головна новина. Головною може бути лише одна; зробити головною можна в меню дій рядка.',
+      emptyTitle: 'Новин ще немає', emptyText: 'Додайте першу новину. Вона зʼявиться на сайті після публікації.',
+      sort: { key: 'date', dir: 'desc' }, markLabel: 'Головна новина',
+      actions: ['edit', 'makeMain', 'unpublish', 'archive'],
+      cols: [
+        { key: 'photo', label: 'Фото', kind: 'thumb', w: '72px' },
+        { key: 'title', label: 'Заголовок', kind: 'link', sortable: true },
+        { key: 'section', label: 'Розділ', sortable: true },
+        { key: 'type', label: 'Тип', sortable: true, nowrap: true },
+        { key: 'date', label: 'Дата', sortable: true, nowrap: true, firstDir: 'desc' },
+        { key: 'status', label: 'Статус', kind: 'status', sortable: true },
+        { key: 'changed', label: 'Змінено', kind: 'muted', sortable: true, firstDir: 'desc' }
+      ],
+      rows: function () {
+        return A.data.news.map(function (n, i) {
+          return { id: n.id, href: '#/news/' + encodeURIComponent(n.id), status: n.status, img: A.img(n.img), tone: 't' + ((i % 6) + 1), featured: !!n.featured,
+            c: { title: n.title, section: n.section, type: n.type, date: A.fd(n.date) || '[Date]', changed: n.changed || '' },
+            s: { date: n.date || '', changed: A.changedKey(n.changed) } };
+        });
+      },
+      onPatch: function (ch) { return A.ops.patch('news', ch); }
+    });
+  };
+
+  A.screens.newsCard = function (root, recId) {
+    var D = A.data;
+    var n = recId === 'new' ? null : D.news.find(function (x) { return x.id === recId; });
+    if (recId !== 'new' && !n) { A.notFound(root, 'Новину не знайдено', '#/news', 'До новин'); return; }
+    var id = n ? n.id : A.newId('n');
+    var v = function (k, d) { return n && n[k] != null ? n[k] : d; };
+    return A.form(root, {
+      title: n ? n.title : 'Нова новина', back: { label: 'Новини', href: '#/news' },
+      status: n ? n.status : 'draft', softReq: !!n, meta: n ? 'Змінено ' + (n.changed || '—') : 'Ще не збережено',
+      sections: [
+        { title: 'Основне', fields: [
+          { id: 'title', type: 'text', label: 'Заголовок', req: true, max: 100, value: v('title', '') },
+          { id: 'slug', type: 'text', label: 'Адреса сторінки', prefix: 'takehigh.com/latest/', slug: true, slugFrom: 'title', taken: D.news.filter(function (x) { return x.id !== id; }).map(function (x) { return x.slug; }), ph: 'news-session-report', hint: 'Якщо порожньо, створиться із заголовка. Латиниця, цифри і дефіс.', value: v('slug', '') },
+          { id: 'deck', type: 'textarea', label: 'Короткий опис', req: true, max: 200, rows: 3, value: v('deck', '') },
+          { id: 'date', type: 'date', label: 'Дата', req: true, half: true, value: v('date', '') },
+          { id: 'section', type: 'select', label: 'Розділ', req: true, half: true, options: SECTIONS, value: v('section', '') },
+          { id: 'type', type: 'select', label: 'Тип', req: true, half: true, options: TYPES, value: v('type', '') },
+          { id: 'partner', type: 'select', label: 'Партнер', half: true, selPh: 'Без партнера', options: D.partners.filter(function (p) { return p.status === 'pub'; }).map(function (p) { return p.name; }), hint: 'Лише опубліковані партнери', value: v('partner', '') }
+        ] },
+        { title: 'Теги і люди', fields: [
+          { id: 'tags', type: 'multi', label: 'Теги', options: D.tags.slice(), allowNew: true, itemMax: 30, newText: 'Створити тег', ph: 'Почніть вводити або створіть новий тег', hint: 'Новий тег додається в довідник. Регістр зберігається, на сайті: #Nazaré', value: v('tags', []).slice() },
+          { id: 'people', type: 'multi', label: 'Люди з команди', options: D.members.filter(function (m) { return m.status === 'pub'; }).map(function (m) { return m.name; }), ph: 'Оберіть учасників', hint: 'Лише опубліковані учасники. На сайті — посилання на Club', value: v('people', []).map(memberName) },
+          { id: 'others', type: 'multi', label: 'Інші люди', allowNew: true, itemMax: 80, newText: 'Додати', ph: 'Введіть імʼя і натисніть Enter', hint: 'Для людей, яких немає серед учасників', value: v('others', []).slice() }
+        ] },
+        { title: 'Локація', fields: [
+          { id: 'place', type: 'text', label: 'Назва локації', max: 100, ph: 'Наприклад: Nazaré', value: v('place', '') },
+          { id: 'point', type: 'map', label: 'Точка на карті', value: v('point', null) }
+        ] },
+        { title: 'Головне фото', fields: [
+          { id: 'img', type: 'photo', label: 'Головне фото', req: true, limit: 10, caption: 'Контекст фото', captionMax: 150, value: v('img', null), sub: { author: v('imgAuthor', ''), caption: v('imgCaption', '') } }
+        ] },
+        { title: 'Текст', fields: [
+          { id: 'body', type: 'editor', label: 'Текст новини', req: true, ph: 'Почніть писати текст новини…', hint: 'Шрифт, колір і розмір тексту задає дизайн сайту', value: v('body', '') }
+        ] },
+        { title: 'Внутрішнє', desc: 'Ці поля бачать лише адміністратори, на сайті вони не показуються.', fields: [
+          { id: 'source', type: 'textarea', label: 'Джерело', req: true, rows: 2, ph: 'Посилання або опис, звідки інформація', value: v('source', '') }
+        ] }
+      ],
+      onSave: function (val, status) {
+        var rec = { title: val.title, slug: val.slug || A.slugify(val.title), deck: val.deck, date: val.date, section: val.section, type: val.type, partner: val.partner,
+          tags: val.tags, people: val.people.map(memberId), others: val.others, place: val.place, point: val.point,
+          img: val.img, imgAuthor: val.img_author, imgCaption: val.img_caption, body: val.body, source: val.source };
+        return A.ops.save('news', id, rec, status, val.title);
+      },
+      afterSave: function () { if (recId === 'new') history.replaceState(null, '', '#/news/' + encodeURIComponent(id)); }
+    });
+  };
+
+  A.screens.tags = function (root) {
+    return A.list(root, {
+      title: 'Теги', addLabel: 'Додати тег', addHref: '#/tags/new',
+      note: 'Теги також створюються з картки новини. На сайті показуються як #Тег, регістр зберігається.',
+      emptyTitle: 'Тегів ще немає', emptyText: 'Додайте тег, щоб групувати новини.',
+      selectable: false, actions: ['edit'], sort: { key: 'title', dir: 'asc' },
+      cols: [
+        { key: 'title', label: 'Назва', kind: 'link', sortable: true },
+        { key: 'count', label: 'Кількість новин', sortable: true, w: '200px', firstDir: 'desc' }
+      ],
+      rows: function () {
+        return A.data.tags.map(function (t) {
+          var c = A.data.news.filter(function (x) { return (x.tags || []).indexOf(t) >= 0; }).length;
+          return { id: t, href: '#/tags/' + encodeURIComponent(t), c: { title: t, count: String(c) }, s: { count: c } };
+        });
+      }
+    });
+  };
+
+  A.screens.tagCard = function (root, name) {
+    var isNew = name === 'new';
+    if (!isNew && A.data.tags.indexOf(name) < 0) { A.notFound(root, 'Тег не знайдено', '#/tags', 'До тегів'); return; }
+    var cur = isNew ? '' : name;
+    var count = cur ? A.data.news.filter(function (x) { return (x.tags || []).indexOf(cur) >= 0; }).length : 0;
+    return A.form(root, {
+      title: cur || 'Новий тег', back: { label: 'Теги', href: '#/tags' }, footer: 'save',
+      meta: cur ? 'Використано в новинах: ' + count : 'Ще не збережено', footMeta: 'Назва зміниться в усіх новинах з цим тегом',
+      sections: [{ title: 'Тег', fields: [
+        { id: 'name', type: 'text', label: 'Назва', req: true, max: 30, hint: 'Не повторюється. На сайті показується як #Назва', value: cur,
+          unique: function (x) { return A.data.tags.some(function (t) { return t !== cur && t.toLowerCase() === String(x).trim().toLowerCase(); }); }, uniqueMsg: 'Такий тег уже є' }
+      ] }],
+      onSave: function (val) { return A.ops.tag(cur, val.name); },
+      afterSave: function (res) { if (res) { cur = res; history.replaceState(null, '', '#/tags/' + encodeURIComponent(res)); } }
+    });
+  };
+})();
