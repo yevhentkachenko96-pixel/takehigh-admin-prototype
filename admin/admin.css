@@ -396,3 +396,23 @@ svg.i-sm{width:14px;height:14px}
 .modal p{margin:0;color:var(--muted);line-height:1.5}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:8px}
 @media (max-width:720px){.geo-map{height:220px}.geo-search{flex-wrap:wrap}}
+/* пошук і фільтри списку */
+.filters{align-items:center;gap:8px}
+.search{position:relative;flex:1 1 260px;max-width:360px}
+.search .input{width:100%;padding-left:36px}
+.search-ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);display:flex;pointer-events:none}
+.fdd{position:relative}
+.fdd-btn{max-width:280px}
+.fdd-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.fdd.is-on .fdd-btn{border-color:var(--green);color:var(--green);background:var(--green-soft)}
+.fdd-panel{position:absolute;left:0;top:calc(100% + 4px);z-index:30;min-width:220px;max-height:320px;overflow-y:auto;background:#fff;border:1px solid var(--border-strong);border-radius:var(--r);padding:6px;box-shadow:0 8px 24px rgba(12,12,12,.10);display:flex;flex-direction:column;gap:2px}
+.fdd-opt{display:flex;align-items:center;gap:10px;min-height:36px;padding:6px 10px;border-radius:var(--r-sm);cursor:pointer;font-size:14px}
+.fdd-opt:hover{background:var(--row-hover)}
+.fdd-panel .btn{align-self:flex-start;margin-top:4px}
+@media (max-width:760px){
+  .search{flex:1 1 100%;max-width:none}
+  .fdd{flex:1 1 calc(50% - 4px);min-width:0}
+  .fdd-btn{width:100%;max-width:none;justify-content:space-between}
+  .fdd-panel{min-width:0;width:max(100%,200px);max-width:calc(100vw - 32px)}
+  .fdd-r .fdd-panel{left:auto;right:0}
+}

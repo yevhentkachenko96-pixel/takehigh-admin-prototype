@@ -14,7 +14,13 @@
       title: 'Новини', addLabel: 'Додати новину', addHref: '#/news/new', extraLabel: 'Тексти блоків на сайті', extraHref: '#/news-texts',
       note: 'Зірочка на фото — головна новина. Головною може бути лише одна; зробити головною можна в меню дій рядка. Видалення остаточне.',
       emptyTitle: 'Новин ще немає', emptyText: 'Додайте першу новину. Вона зʼявиться на сайті після публікації.',
-      sort: { key: 'date', dir: 'desc' }, markLabel: 'Головна новина',
+      sort: { key: 'date', dir: 'desc' }, markLabel: 'Головна новина', memoryKey: 'news',
+      search: { key: 'title', ph: 'Пошук за заголовком' },
+      filters: [
+        { key: 'section', label: 'Розділ', options: SECTIONS },
+        { key: 'type', label: 'Тип', options: TYPES },
+        { key: 'status', label: 'Статус', options: ['draft', 'pub'], names: A.STATUS }
+      ],
       actions: ['edit', 'makeMain', 'unpublish', 'delete'], entityLabel: 'новину', entityForms: ['новини', 'новин'],
       cols: [
         { key: 'photo', label: 'Фото', kind: 'thumb', w: '72px' },
@@ -28,6 +34,7 @@
       rows: function () {
         return A.data.news.map(function (n, i) {
           return { id: n.id, href: '#/news/' + encodeURIComponent(n.id), status: n.status, img: A.img(n.img), tone: 't' + ((i % 6) + 1), featured: !!n.featured,
+            f: { section: n.section, type: n.type, status: n.status },
             c: { title: n.title, section: n.section, type: n.type, date: A.fd(n.date) || '[Date]', changed: n.changed || '' },
             s: { date: n.date || '', changed: A.changedKey(n.changed) } };
         });
@@ -49,7 +56,7 @@
       sections: [
         { title: 'Основне', fields: [
           { id: 'title', type: 'text', label: 'Заголовок', req: true, max: 100, value: v('title', '') },
-          { id: 'slug', type: 'text', label: 'Адреса сторінки', prefix: 'takehigh.com/latest/', slug: true, slugFrom: 'title', taken: D.news.filter(function (x) { return x.id !== id; }).map(function (x) { return x.slug; }), ph: 'news-session-report', hint: 'Якщо порожньо, створиться із заголовка. Латиниця, цифри і дефіс.', value: v('slug', '') },
+          { id: 'slug', type: 'text', label: 'Адреса сторінки', prefix: 'takehigh.com/news/', slug: true, slugFrom: 'title', taken: D.news.filter(function (x) { return x.id !== id; }).map(function (x) { return x.slug; }), ph: 'news-session-report', hint: 'Якщо порожньо, створиться із заголовка. Латиниця, цифри і дефіс.', value: v('slug', '') },
           { id: 'deck', type: 'textarea', label: 'Короткий опис', req: true, max: 200, rows: 3, value: v('deck', '') },
           { id: 'date', type: 'date', label: 'Дата', req: true, half: true, value: v('date', '') },
           { id: 'section', type: 'select', label: 'Розділ', req: true, half: true, options: SECTIONS, value: v('section', '') },
@@ -57,7 +64,7 @@
           { id: 'partner', type: 'select', label: 'Партнер', half: true, selPh: 'Без партнера', options: D.partners.filter(function (p) { return p.status === 'pub'; }).map(function (p) { return p.name; }), hint: 'Лише опубліковані партнери', value: v('partner', '') }
         ] },
         { title: 'Теги і люди', fields: [
-          { id: 'tags', type: 'multi', label: 'Теги', lower: true, options: D.tags.slice(), allowNew: true, itemMax: 30, newText: 'Створити тег', ph: 'Почніть вводити або створіть новий тег', hint: 'Теги завжди малими літерами, на сайті: #nazaré. Новий тег додається в довідник', value: v('tags', []).slice() },
+          { id: 'tags', type: 'multi', label: 'Теги', lower: true, options: D.tags.slice(), blocked: (D.tagsDeleted || []).slice(), blockedText: function (t) { return 'Тег «' + t + '» видалено, додати не можна. Відновити — у розділі Теги'; }, allowNew: true, itemMax: 30, newText: 'Створити тег', ph: 'Почніть вводити або створіть новий тег', hint: 'Теги завжди малими літерами, на сайті: #nazaré. Новий тег додається в довідник', value: v('tags', []).slice() },
           { id: 'people', type: 'multi', label: 'Люди з команди', options: D.members.filter(function (m) { return m.status === 'pub'; }).map(function (m) { return m.name; }), ph: 'Оберіть учасників', noneText: 'Нічого не знайдено серед опублікованих учасників', hint: 'Лише опубліковані учасники. На сайті — посилання на Club', value: v('people', []).map(memberName) },
           { id: 'others', type: 'multi', label: 'Інші люди', allowNew: true, itemMax: 80, newText: 'Додати', ph: 'Введіть імʼя і натисніть Enter', emptyHint: 'Введіть імʼя, щоб додати', hint: 'Для людей, яких немає серед учасників', value: v('others', []).slice() }
         ] },
@@ -117,9 +124,14 @@
   A.screens.tags = function (root) {
     return A.list(root, {
       title: 'Теги', addLabel: 'Додати тег', addHref: '#/tags/new',
-      note: 'Теги також створюються з картки новини. Теги завжди малими літерами, на сайті: #тег.',
+      note: 'Теги також створюються з картки новини. Теги завжди малими літерами, на сайті: #тег. Видалений тег лишається в новинах, де вже стоїть, але додати його до інших не можна; відновити — створивши тег з тією ж назвою.',
       emptyTitle: 'Тегів ще немає', emptyText: 'Додайте тег, щоб групувати новини.',
-      selectable: false, actions: ['edit'], sort: { key: 'title', dir: 'asc' },
+      selectable: false, actions: ['edit', 'delete'], sort: { key: 'title', dir: 'asc' }, entityLabel: 'тег',
+      onDelete: function (ids) { return A.ops.tagDelete(ids); },
+      confirmText: function (ids) {
+        var t = ids[0], n = A.data.news.filter(function (x) { return (x.tags || []).indexOf(t) >= 0; }).length;
+        return 'Тег «' + t + '» зникне з довідника і з підказок. ' + (n ? 'У ' + n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? 'новині' : 'новинах') + ' він залишиться, але додати його до інших новин буде не можна.' : 'Зараз він не стоїть у жодній новині.') + ' Повернути тег можна, створивши новий тег з тією ж назвою.';
+      },
       cols: [
         { key: 'title', label: 'Назва', kind: 'link', sortable: true },
         { key: 'count', label: 'Кількість новин', sortable: true, w: '200px', firstDir: 'desc' }
@@ -143,7 +155,14 @@
       meta: cur ? 'Використано в новинах: ' + count : 'Ще не збережено', footMeta: 'Назва зміниться в усіх новинах з цим тегом',
       sections: [{ title: 'Тег', fields: [
         { id: 'name', type: 'text', label: 'Назва', lower: true, req: true, max: 30, hint: 'Не повторюється. Зберігається малими літерами, на сайті: #назва', value: cur,
-          unique: function (x) { return A.data.tags.some(function (t) { return t !== cur && t.toLowerCase() === String(x).trim().toLowerCase(); }); }, uniqueMsg: 'Такий тег уже є' }
+          unique: function (x) {
+            var k = A.tagKey(x);
+            if (A.data.tags.some(function (t) { return t !== cur && t === k; })) return true;
+            if ((A.data.tagsDeleted || []).indexOf(k) >= 0) return { msg: 'Тег «' + k + '» видалено раніше.', action: !cur ? { label: 'Відновити тег', run: function () {
+              A.ops.tagRestore(k).then(function () { A.toast('Тег «' + k + '» відновлено'); location.hash = '#/tags/' + encodeURIComponent(k); }, A.saveError);
+            } } : null };
+            return false;
+          }, uniqueMsg: 'Такий тег уже є' }
       ] }],
       onSave: function (val) { return A.ops.tag(cur, val.name); },
       afterSave: function (res) { if (res) { cur = res; history.replaceState(null, '', '#/tags/' + encodeURIComponent(res)); } }

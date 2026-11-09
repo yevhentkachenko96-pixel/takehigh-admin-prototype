@@ -34,7 +34,7 @@
     }
 
     function errorsFor(mode) {
-      var E = {}, W = {};
+      var E = {}, W = {}; st.errAct = {};
       fields.forEach(function (f) {
         var x = val(f);
         if (f.type === 'photo' && st.photo[f.id].state === 'error') { E[f.id] = st.photo[f.id].msg; return; }
@@ -44,7 +44,7 @@
           if (!/^[a-z0-9-]+$/.test(x)) { E[f.id] = 'Лише латиниця в нижньому регістрі, цифри і дефіс'; return; }
           if ((f.taken || []).indexOf(x) >= 0) { E[f.id] = 'Таке посилання вже є'; return; }
         }
-        if (f.unique && x && f.unique(x)) { E[f.id] = f.uniqueMsg || 'Таке значення вже є'; return; }
+        if (f.unique && x) { var u = f.unique(x); if (u) { E[f.id] = typeof u === 'object' ? u.msg : (f.uniqueMsg || 'Таке значення вже є'); if (u.action) st.errAct[f.id] = u.action; return; } }
         if (f.inputType === 'url' && x && !/^https?:\/\/\S+\.\S+/.test(x)) { E[f.id] = 'Неправильне посилання. Приклад: https://…'; return; }
         if (f.inputType === 'email' && x && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)) { E[f.id] = 'Неправильний формат email'; return; }
         if (f.type === 'multi' && f.maxItems && x.length > f.maxItems) { E[f.id] = 'Не більше ' + f.maxItems; return; }
@@ -59,7 +59,8 @@
       return '<span class="counter' + (x.length > f.max ? ' over' : '') + '" id="cn-' + f.id + '" aria-live="polite">' + x.length + ' / ' + f.max + '</span>';
     }
     function below(f, err) {
-      return '<div class="below" id="d-' + f.id + '">' + (err ? '<span class="err">' + icon('err', 'i-sm') + esc(err) + '</span>' : (f.hint ? '<span class="hint">' + esc(f.hint) + '</span>' : '')) + counter(f) + '</div>';
+      var ea = err && st.errAct && st.errAct[f.id];
+      return '<div class="below" id="d-' + f.id + '">' + (err ? '<span class="err">' + icon('err', 'i-sm') + esc(err) + (ea ? ' <button class="btn btn-secondary btn-sm" type="button" data-act="err-action" data-f="' + f.id + '">' + esc(ea.label) + '</button>' : '') + '</span>' : (f.hint ? '<span class="hint">' + esc(f.hint) + '</span>' : '')) + counter(f) + '</div>';
     }
 
     function fieldHtml(f, E) {
@@ -87,6 +88,7 @@
           ' autocomplete="off" data-multi="' + f.id + '" role="combobox" aria-autocomplete="list" aria-controls="sg-' + f.id + '" aria-expanded="' + open + '"' + (open && items.length ? ' aria-activedescendant="sg-' + f.id + '-' + act + '"' : '') + '>';
         if (open) {
           h += '<div class="suggest" id="sg-' + f.id + '" role="listbox" aria-label="Варіанти">' + items.map(function (it, i) {
+            if (it.blocked) return '<span class="menu-item muted" role="option" aria-disabled="true" id="sg-' + f.id + '-' + i + '">' + esc(f.blockedText ? f.blockedText(it.v) : '«' + it.v + '» недоступне') + '</span>';
             return '<button class="menu-item' + (it.isNew ? ' suggest-new' : '') + (i === act ? ' is-active' : '') + '" type="button" role="option" id="sg-' + f.id + '-' + i + '" aria-selected="' + (i === act) + '" tabindex="-1" data-act="' + (it.isNew ? 'chip-new' : 'chip-add') + '" data-f="' + f.id + '" data-v="' + esc(it.v) + '">' +
               (it.isNew ? icon('plus', 'i-sm') + esc((f.newText || 'Додати') + ' «' + it.v + '»') : esc(it.v)) + '</button>';
           }).join('') + (items.length ? '' : '<span class="menu-item muted">' + esc(emptyText(f)) + '</span>') + '</div>';
@@ -275,7 +277,9 @@
       var out = (f.options || []).filter(function (o) { return x.indexOf(o) < 0 && (!low || o.toLowerCase().indexOf(low) >= 0); })
         .sort(function (a, b) { return a.localeCompare(b, 'uk'); }).map(function (o) { return { v: o }; });
       var exact = (f.options || []).concat(x).some(function (o) { return o.toLowerCase() === low; });
-      if (f.allowNew && low && !exact && q.length <= (f.itemMax || 80)) out.push({ v: f.lower ? low : q, isNew: true });
+      var blocked = low && (f.blocked || []).some(function (o) { return o.toLowerCase() === low; });
+      if (blocked && x.indexOf(f.lower ? low : q) < 0) out.push({ v: f.lower ? low : q, blocked: true });
+      else if (f.allowNew && low && !exact && q.length <= (f.itemMax || 80)) out.push({ v: f.lower ? low : q, isNew: true });
       return out;
     }
     function emptyText(f) {
@@ -297,6 +301,7 @@
 
     function addChip(f, v) {
       v = String(v || '').trim(); if (f.lower) v = v.toLowerCase(); if (!v) return;
+      if ((f.blocked || []).some(function (o) { return o.toLowerCase() === v.toLowerCase(); })) return;
       var x = st.vals[f.id];
       if (x.some(function (c) { return c.toLowerCase() === v.toLowerCase(); })) return;
       var ex = (f.options || []).find(function (o) { return o.toLowerCase() === v.toLowerCase(); });
@@ -353,7 +358,7 @@
         else if (e.key === 'Enter') {
           e.preventDefault();
           if (st.open !== f.id) { openSuggest(f.id); return; }
-          if (items[i]) addChip(f, items[i].v);
+          if (items[i] && !items[i].blocked) addChip(f, items[i].v);
         }
         else if (e.key === 'Backspace' && !t.value && st.vals[f.id].length) { st.vals[f.id].pop(); render(); }
         else if (e.key === 'Escape') { if (st.open) { e.stopPropagation(); st.open = null; render(); } }
@@ -378,6 +383,7 @@
         ta.value = v.slice(0, s) + w[0] + (sel || '') + w[1] + v.slice(en); st.vals[f.id] = ta.value; ta.focus();
         var pos = s + w[0].length + sel.length; ta.setSelectionRange(pos, pos);
       }
+      else if (act === 'err-action') { var ea2 = st.errAct && st.errAct[f.id]; if (ea2) ea2.run(); }
       else if (act === 'draft') submit('draft');
       else if (act === 'publish') submit('publish');
       else if (act === 'save') submit('save');

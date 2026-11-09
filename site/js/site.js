@@ -127,13 +127,15 @@
     }
   }
 
+  var LM = { key: null, n: 6 };
   /* ---------- News: усі новини (колишня сторінка Latest) ---------- */
   function renderLatest(q) {
     var all = published();
     var sec = SECTIONS.indexOf(q.section) >= 0 ? q.section : '', tag = String(q.tag || '').toLowerCase(); // теги завжди малими: старі посилання ?tag=Film теж працюють
     var L = all.filter(function (n) { return (!sec || n.section === sec) && (!tag || (n.tags || []).some(function (t) { return String(t).toLowerCase() === tag; })); });
     var used = {}; all.forEach(function (n) { (n.tags || []).forEach(function (t) { used[t] = 1; }); });
-    var tags = (D.tags || []).filter(function (t) { return used[t]; });
+    // теги з опублікованих новин; видалений з довідника тег лишається, поки стоїть хоча б на одній новині
+    var tags = (D.tags || []).filter(function (t) { return used[t]; }).concat(Object.keys(used).filter(function (t) { return (D.tags || []).indexOf(t) < 0; }).sort());
     var link = function (s, t) { var p = []; if (s) p.push('section=' + encodeURIComponent(s)); if (t) p.push('tag=' + encodeURIComponent(t)); return '#/news' + (p.length ? '?' + p.join('&') : ''); };
     var h = '<section class="page-head"><div class="wrap">' +
       '<nav class="crumbs" aria-label="Breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">/</span><span>News</span></nav>' +
@@ -155,7 +157,10 @@
       if (top) h += '<div class="bento">' + bento(L) + '</div>';
       var shown = top ? (function () { var f = featured(L); var r = L.filter(function (n) { return n !== f; }).slice(0, 3); return [f].concat(r); })() : [];
       var restL = L.filter(function (n) { return shown.indexOf(n) < 0; });
-      if (restL.length) h += '<div class="ngrid">' + restL.map(ncard).join('') + '</div>';
+      // «Load more»: спочатку 6 карток (2 ряди), кнопка додає ще 6; при зміні фільтрів — знову 6
+      var lmKey = sec + '|' + tag; if (LM.key !== lmKey) { LM.key = lmKey; LM.n = 6; }
+      if (restL.length) h += '<div class="ngrid">' + restL.slice(0, LM.n).map(ncard).join('') + '</div>';
+      if (restL.length > LM.n) h += '<div class="more-row"><button class="pillbtn outline big" type="button" data-more>Load more</button><span class="list-count" style="margin:0">Showing ' + LM.n + ' of ' + restL.length + '</span></div>';
     }
     h += '</div></section>';
     return { html: h, title: (sec || tag ? [sec, tag && '#' + tag].filter(Boolean).join(' · ') + ' — ' : '') + 'News · TAKE HIGH' };
@@ -250,6 +255,13 @@
     window.scrollTo(0, 0);
   }
   window.addEventListener('hashchange', function () { route(false); });
+  page.addEventListener('click', function (e) {
+    if (!e.target.closest('[data-more]')) return;
+    var before = page.querySelectorAll('.ngrid > *').length;
+    LM.n += 6; route(true);
+    // фокус на першу нову картку, щоб з клавіатури продовжити з того ж місця
+    var next = page.querySelectorAll('.ngrid > *')[before]; if (next) { var a = next.matches('a') ? next : next.querySelector('a'); if (a) a.focus({ preventScroll: true }); }
+  });
 
   function apply(data, keepScroll) { if (data) D = data; renderHome(); route(keepScroll); }
   apply(null, false);

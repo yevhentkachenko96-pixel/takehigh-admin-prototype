@@ -71,7 +71,7 @@
         if (entity === 'news') {
           exclusive(L, r, 'featured');
           r.tags = uniqLower(r.tags);
-          r.tags.forEach(function (t) { if (D.tags.indexOf(t) < 0) D.tags.push(t); });
+          r.tags.forEach(function (t) { if (D.tags.indexOf(t) < 0 && (D.tagsDeleted || []).indexOf(t) < 0) D.tags.push(t); });
         }
         return r;
       });
@@ -115,6 +115,27 @@
         Object.keys(rec).forEach(function (k) { P[k] = rec[k]; });
         log(D, label || page, 'Сторінки', 'Відредаговано');
         return true;
+      });
+    },
+    // видалення тегів: тег зникає з довідника і з підказок, але лишається в новинах, де вже стоїть.
+    // Назву запамʼятовуємо, щоб тег не можна було додати знову (лише відновити в розділі Теги).
+    tagDelete: function (names) {
+      return A.commit(function (D) {
+        D.tagsDeleted = D.tagsDeleted || []; var n = 0;
+        names.forEach(function (t) {
+          var i = D.tags.indexOf(t); if (i < 0) return;
+          D.tags.splice(i, 1); if (D.tagsDeleted.indexOf(t) < 0) D.tagsDeleted.push(t); n++;
+          var used = D.news.filter(function (x) { return (x.tags || []).indexOf(t) >= 0; }).length;
+          log(D, t, SEC.tags, 'Видалено', '', used ? 'лишився в новинах: ' + used : '');
+        });
+        return n ? n : false;
+      });
+    },
+    tagRestore: function (name) {
+      return A.commit(function (D) {
+        name = A.tagKey(name); D.tagsDeleted = (D.tagsDeleted || []).filter(function (t) { return t !== name; });
+        if (D.tags.indexOf(name) < 0) D.tags.push(name);
+        log(D, name, SEC.tags, 'Відновлено'); return name;
       });
     },
     // повне видалення записів (у прототипі; на робочому сайті — мʼяке видалення, див. BRD)
@@ -215,7 +236,8 @@
       // 1. теги в нижній регістр, однакові зливаються
       var before = (D.tags || []).join('|');
       D.tags = uniqLower(D.tags);
-      (D.news || []).forEach(function (x) { var b = (x.tags || []).join('|'); x.tags = uniqLower(x.tags); x.tags.forEach(function (t) { if (D.tags.indexOf(t) < 0) D.tags.push(t); }); if (b !== x.tags.join('|')) n++; });
+      D.tagsDeleted = uniqLower(D.tagsDeleted);
+      (D.news || []).forEach(function (x) { var b = (x.tags || []).join('|'); x.tags = uniqLower(x.tags); x.tags.forEach(function (t) { if (D.tags.indexOf(t) < 0 && D.tagsDeleted.indexOf(t) < 0) D.tags.push(t); }); if (b !== x.tags.join('|')) n++; });
       if (before !== D.tags.join('|')) { log(D, 'Усі теги', SEC.tags, 'Переведено в нижній регістр', before.split('|').join(', '), D.tags.join(', ')); n++; }
       // 2. архіву більше немає: архівні записи стають чернетками
       Object.keys(D).forEach(function (k) {
