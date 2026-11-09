@@ -87,10 +87,11 @@
     var parts = hash.replace(/^#\/?/, '').split('/').map(function (x) { try { return decodeURIComponent(x); } catch (e) { return x; } });
     var sec = parts[0] || 'news', rec = parts[1];
     var all = []; GROUPS.forEach(function (g) { g[1].forEach(function (it) { all.push(it); }); });
-    var item = all.find(function (it) { return it[0] === sec; }) || all[0];
+    var item = all.find(function (it) { return it[0] === (sec === 'news-texts' ? 'news' : sec); }) || all[0];
     root.innerHTML = '<div class="app">' + sidebar(item[0]) + '<main class="main" id="main"></main></div>';
     var main = document.getElementById('main');
     var s = A.screens;
+    if (sec === 'news-texts') { current = s.newsTexts(main); current = { kind: 'form', ctl: current }; document.title = 'Тексти блоків новин · TAKE HIGH · Адмінка'; window.scrollTo(0, 0); return; }
     if (item[0] === 'news') current = rec ? s.newsCard(main, rec) : s.news(main);
     else if (item[0] === 'tags') current = rec ? s.tagCard(main, rec) : s.tags(main);
     else {
@@ -119,10 +120,18 @@
   function start() {
     root.innerHTML = '<div class="state-box"><p class="meta">Завантаження даних з: ' + esc(window.THStorage.label) + '…</p></div>';
     A.load().then(function (r) {
-      window.addEventListener('hashchange', A.route);
-      A.route();
-      if (r.seeded) A.toast('Створено файл даних із початковим контентом');
-    }, function (e) {
+      var box = root.querySelector('.state-box');
+      return A.migratePhotos(function (i, n) {
+        if (box) box.innerHTML = '<h1 style="margin:0;font-size:20px">Переносимо фото в Dropbox</h1><p class="meta" style="margin:0">Перший вхід: фото сайту копіюються у ваш Dropbox. Фото ' + i + ' з ' + n + '. Не закривайте сторінку.</p><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + n + '" aria-valuenow="' + i + '"><span style="width:' + Math.round(i / n * 100) + '%"></span></div>';
+      }).then(function (m) { return A.applyCopyUpdates().then(function (c) { m.copy = c; return m; }); }).then(function (m) {
+        window.addEventListener('hashchange', A.route);
+        A.route();
+        if (m.done) A.toast('Фото перенесено в Dropbox: ' + m.done);
+        else if (m.copy) A.toast('Застосовано правки контенту: ' + m.copy);
+        else if (r.seeded) A.toast('Створено файл даних із початковим контентом');
+        if (m.failed.length) { A.toast('Не всі фото перенеслися (' + m.failed.length + '). Наступний вхід продовжить', true); console.warn('[TAKE HIGH] фото не перенесено:', m.failed); }
+      });
+    }).catch(function (e) {
       root.innerHTML = '<div class="state-box"><h1 style="margin:0;font-size:20px">Не вдалося завантажити дані</h1><p style="margin:0">' + esc(e.message || 'Невідома помилка') + '</p>' +
         (e.detail ? '<pre>' + esc(String(e.detail).slice(0, 800)) + '</pre>' : '') +
         '<p class="meta" style="margin:0">Перевірте ключі Dropbox у секретах GitHub (див. README) і спробуйте ще раз.</p><div><button class="btn btn-primary" type="button" id="retry">Спробувати ще раз</button></div></div>';

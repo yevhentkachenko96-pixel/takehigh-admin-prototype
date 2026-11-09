@@ -60,7 +60,12 @@
       var nSel = Object.keys(st.sel).length;
       var h = '<div style="display:flex;flex-direction:column;gap:20px;width:100%">';
       h += '<header class="page-head"><div class="head-left"><h1>' + esc(cfg.title) + '</h1><span class="meta">Записів: ' + R.length + '</span></div>';
-      if (cfg.addHref) h += '<a class="btn btn-primary" href="' + esc(cfg.addHref) + '">' + icon('plus') + esc(cfg.addLabel) + '</a>';
+      if (cfg.addHref || cfg.extraHref) {
+        h += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+        if (cfg.extraHref) h += '<a class="btn btn-secondary" href="' + esc(cfg.extraHref) + '">' + esc(cfg.extraLabel) + '</a>';
+        if (cfg.addHref) h += '<a class="btn btn-primary" href="' + esc(cfg.addHref) + '">' + icon('plus') + esc(cfg.addLabel) + '</a>';
+        h += '</div>';
+      }
       h += '</header>';
       if (cfg.note) h += '<p class="note" style="margin:0">' + icon('info') + '<span>' + esc(cfg.note) + '</span></p>';
       if (nSel) {

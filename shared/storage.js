@@ -106,13 +106,14 @@
     // посилання для перегляду → пряме посилання на файл (для <img>)
     return url.replace(/([?&])dl=0/, '$1raw=1');
   }
-  function dbxUpload(blob, name) {
-    var path = IMG_DIR + '/' + Date.now().toString(36) + '-' + String(name || 'photo').toLowerCase().replace(/[^a-z0-9.]+/g, '-').slice(-60);
+  function dbxUpload(blob, name, fixed) {
+    // fixed: стала назва файлу (для перенесення фото вайрфрейму; повторний запуск перезаписує той самий файл)
+    var path = IMG_DIR + '/' + (fixed ? String(name) : Date.now().toString(36) + '-' + String(name || 'photo').toLowerCase().replace(/[^a-z0-9.]+/g, '-').slice(-60));
     return getToken().then(function (t) {
       return fetch('https://content.dropboxapi.com/2/files/upload', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/octet-stream',
-          'Dropbox-API-Arg': argHeader({ path: path, mode: { '.tag': 'add' }, autorename: true, mute: true }) },
+          'Dropbox-API-Arg': argHeader({ path: path, mode: fixed ? { '.tag': 'overwrite' } : { '.tag': 'add' }, autorename: !fixed, mute: true }) },
         body: blob
       });
     }).then(function (r) {
@@ -165,7 +166,7 @@
         return newRev;
       });
     },
-    uploadImage: function (blob, name) { return MODE === 'dropbox' ? dbxUpload(blob, name) : localUpload(blob); },
+    uploadImage: function (blob, name, fixed) { return MODE === 'dropbox' ? dbxUpload(blob, name, fixed) : localUpload(blob); },
     cached: function () { var raw = lsGet(CACHE_KEY); if (!raw) return null; try { return JSON.parse(raw); } catch (e) { return null; } },
     // Сповіщає про нові дані: миттєво з інших вкладок цього браузера і раз на кілька секунд з Dropbox
     watch: function (cb) {

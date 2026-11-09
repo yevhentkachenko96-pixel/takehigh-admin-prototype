@@ -11,7 +11,7 @@
 
   A.screens.news = function (root) {
     return A.list(root, {
-      title: 'Новини', addLabel: 'Додати новину', addHref: '#/news/new',
+      title: 'Новини', addLabel: 'Додати новину', addHref: '#/news/new', extraLabel: 'Тексти блоків на сайті', extraHref: '#/news-texts',
       note: 'Зірочка на фото — головна новина. Головною може бути лише одна; зробити головною можна в меню дій рядка.',
       emptyTitle: 'Новин ще немає', emptyText: 'Додайте першу новину. Вона зʼявиться на сайті після публікації.',
       sort: { key: 'date', dir: 'desc' }, markLabel: 'Головна новина',
@@ -81,6 +81,35 @@
         return A.ops.save('news', id, rec, status, val.title);
       },
       afterSave: function () { if (recId === 'new') history.replaceState(null, '', '#/news/' + encodeURIComponent(id)); }
+    });
+  };
+
+  // Заголовки і підписи блоків новин на сайті (Home: Latest і More from Media; сторінка Latest)
+  A.screens.newsTexts = function (root) {
+    var H = (A.data.pages || {}).home || {}, L = (A.data.pages || {}).latest || {};
+    var v = function (o, k, d) { return o[k] != null && o[k] !== '' ? o[k] : d; };
+    return A.form(root, {
+      title: 'Тексти блоків новин на сайті', back: { label: 'Новини', href: '#/news' }, footer: 'save', liveTitle: false,
+      meta: 'Заголовки і кнопки, які оточують новини на сайті', footMeta: 'Зміни зʼявляться на сайті після збереження',
+      sections: [
+        { title: 'Home · блок News', desc: 'Великий блок новин на головній: головна новина і три найсвіжіші.', fields: [
+          { id: 'latestLabel', type: 'text', label: 'Надпис над заголовком', req: true, max: 30, half: true, value: v(H, 'latestLabel', 'News') },
+          { id: 'latestCta', type: 'text', label: 'Текст кнопки', req: true, max: 30, half: true, hint: 'Веде на сторінку News', value: v(H, 'latestCta', 'View all updates') },
+          { id: 'latestTitle', type: 'text', label: 'Заголовок', req: true, max: 80, value: v(H, 'latestTitle', 'Updates from the team') }
+        ] },
+        { title: 'Home · ряд More from Media', desc: 'Три останні новини з розділом Media під блоком фільму.', fields: [
+          { id: 'mediaRowLabel', type: 'text', label: 'Надпис над рядом', req: true, max: 40, value: v(H, 'mediaRowLabel', 'More from Media') }
+        ] },
+        { title: 'Сторінка News', desc: 'Сторінка з усіма новинами і фільтрами за розділом і тегом.', fields: [
+          { id: 'label', type: 'text', label: 'Надпис над заголовком', req: true, max: 30, half: true, value: v(L, 'label', 'News') },
+          { id: 'title', type: 'text', label: 'Заголовок', req: true, max: 80, value: v(L, 'title', 'Updates from the team') },
+          { id: 'intro', type: 'textarea', label: 'Вступ', max: 300, rows: 3, value: v(L, 'intro', 'Session reports, team updates and stories from the people behind TAKE HIGH.') }
+        ] }
+      ],
+      onSave: function (val) {
+        return A.ops.page('home', { latestLabel: val.latestLabel, latestTitle: val.latestTitle, latestCta: val.latestCta, mediaRowLabel: val.mediaRowLabel }, 'Home: блоки новин')
+          .then(function () { return A.ops.page('latest', { label: val.label, title: val.title, intro: val.intro }, 'Сторінка News'); });
+      }
     });
   };
 

@@ -52,7 +52,9 @@
     if (!k || typeof k !== 'string') return null;
     if (/^(data:|blob:|https?:)/.test(k)) return k;
     var t = window.TH_THUMBS || {};
-    return t[k] ? '../shared/' + t[k] : null;
+    if (t[k]) return '../shared/' + t[k];
+    var p = window.TH_PHOTOS || {};
+    return p[k] ? '../shared/' + p[k] : null;
   };
 
   var toastTimer = null;
