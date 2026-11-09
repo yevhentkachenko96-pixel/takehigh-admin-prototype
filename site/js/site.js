@@ -130,8 +130,8 @@
   /* ---------- News: усі новини (колишня сторінка Latest) ---------- */
   function renderLatest(q) {
     var all = published();
-    var sec = SECTIONS.indexOf(q.section) >= 0 ? q.section : '', tag = q.tag || '';
-    var L = all.filter(function (n) { return (!sec || n.section === sec) && (!tag || (n.tags || []).indexOf(tag) >= 0); });
+    var sec = SECTIONS.indexOf(q.section) >= 0 ? q.section : '', tag = String(q.tag || '').toLowerCase(); // теги завжди малими: старі посилання ?tag=Film теж працюють
+    var L = all.filter(function (n) { return (!sec || n.section === sec) && (!tag || (n.tags || []).some(function (t) { return String(t).toLowerCase() === tag; })); });
     var used = {}; all.forEach(function (n) { (n.tags || []).forEach(function (t) { used[t] = 1; }); });
     var tags = (D.tags || []).filter(function (t) { return used[t]; });
     var link = function (s, t) { var p = []; if (s) p.push('section=' + encodeURIComponent(s)); if (t) p.push('tag=' + encodeURIComponent(t)); return '#/news' + (p.length ? '?' + p.join('&') : ''); };

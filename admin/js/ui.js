@@ -37,7 +37,9 @@
     if (status === 'arch') return '<span class="badge b-arch">' + A.icon('arch', 'i-sm') + 'Архів</span>';
     return '<span class="badge b-draft">' + A.icon('draft', 'i-sm') + 'Чернетка</span>';
   };
-  A.STATUS = { pub: 'Опубліковано', draft: 'Чернетка', arch: 'Архів' };
+  A.STATUS = { pub: 'Опубліковано', draft: 'Чернетка', arch: 'Архів' }; // «Архів» лишився лише для старих записів журналу
+  A.isPoint = function (p) { return !!(p && typeof p.lat === 'number' && typeof p.lng === 'number'); };
+  A.tagKey = function (t) { return String(t || '').trim().toLowerCase(); };
 
   A.pad = function (n) { return (n < 10 ? '0' : '') + n; };
   A.now = function () { var d = new Date(); return A.pad(d.getDate()) + '.' + A.pad(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + A.pad(d.getHours()) + ':' + A.pad(d.getMinutes()); };

@@ -12,10 +12,10 @@
   A.screens.news = function (root) {
     return A.list(root, {
       title: 'Новини', addLabel: 'Додати новину', addHref: '#/news/new', extraLabel: 'Тексти блоків на сайті', extraHref: '#/news-texts',
-      note: 'Зірочка на фото — головна новина. Головною може бути лише одна; зробити головною можна в меню дій рядка.',
+      note: 'Зірочка на фото — головна новина. Головною може бути лише одна; зробити головною можна в меню дій рядка. Видалення остаточне.',
       emptyTitle: 'Новин ще немає', emptyText: 'Додайте першу новину. Вона зʼявиться на сайті після публікації.',
       sort: { key: 'date', dir: 'desc' }, markLabel: 'Головна новина',
-      actions: ['edit', 'makeMain', 'unpublish', 'archive'],
+      actions: ['edit', 'makeMain', 'unpublish', 'delete'], entityLabel: 'новину', entityForms: ['новини', 'новин'],
       cols: [
         { key: 'photo', label: 'Фото', kind: 'thumb', w: '72px' },
         { key: 'title', label: 'Заголовок', kind: 'link', sortable: true },
@@ -32,7 +32,8 @@
             s: { date: n.date || '', changed: A.changedKey(n.changed) } };
         });
       },
-      onPatch: function (ch) { return A.ops.patch('news', ch); }
+      onPatch: function (ch) { return A.ops.patch('news', ch); },
+      onDelete: function (ids) { return A.ops.remove('news', ids); }
     });
   };
 
@@ -56,13 +57,13 @@
           { id: 'partner', type: 'select', label: 'Партнер', half: true, selPh: 'Без партнера', options: D.partners.filter(function (p) { return p.status === 'pub'; }).map(function (p) { return p.name; }), hint: 'Лише опубліковані партнери', value: v('partner', '') }
         ] },
         { title: 'Теги і люди', fields: [
-          { id: 'tags', type: 'multi', label: 'Теги', options: D.tags.slice(), allowNew: true, itemMax: 30, newText: 'Створити тег', ph: 'Почніть вводити або створіть новий тег', hint: 'Новий тег додається в довідник. Регістр зберігається, на сайті: #Nazaré', value: v('tags', []).slice() },
+          { id: 'tags', type: 'multi', label: 'Теги', lower: true, options: D.tags.slice(), allowNew: true, itemMax: 30, newText: 'Створити тег', ph: 'Почніть вводити або створіть новий тег', hint: 'Теги завжди малими літерами, на сайті: #nazaré. Новий тег додається в довідник', value: v('tags', []).slice() },
           { id: 'people', type: 'multi', label: 'Люди з команди', options: D.members.filter(function (m) { return m.status === 'pub'; }).map(function (m) { return m.name; }), ph: 'Оберіть учасників', hint: 'Лише опубліковані учасники. На сайті — посилання на Club', value: v('people', []).map(memberName) },
           { id: 'others', type: 'multi', label: 'Інші люди', allowNew: true, itemMax: 80, newText: 'Додати', ph: 'Введіть імʼя і натисніть Enter', hint: 'Для людей, яких немає серед учасників', value: v('others', []).slice() }
         ] },
         { title: 'Локація', fields: [
           { id: 'place', type: 'text', label: 'Назва локації', max: 100, ph: 'Наприклад: Nazaré', value: v('place', '') },
-          { id: 'point', type: 'map', label: 'Точка на карті', value: v('point', null) }
+          { id: 'point', type: 'map', label: 'Точка на карті', placeField: 'place', value: v('point', null) }
         ] },
         { title: 'Головне фото', fields: [
           { id: 'img', type: 'photo', label: 'Головне фото', req: true, limit: 10, caption: 'Контекст фото', captionMax: 150, value: v('img', null), sub: { author: v('imgAuthor', ''), caption: v('imgCaption', '') } }
@@ -116,7 +117,7 @@
   A.screens.tags = function (root) {
     return A.list(root, {
       title: 'Теги', addLabel: 'Додати тег', addHref: '#/tags/new',
-      note: 'Теги також створюються з картки новини. На сайті показуються як #Тег, регістр зберігається.',
+      note: 'Теги також створюються з картки новини. Теги завжди малими літерами, на сайті: #тег.',
       emptyTitle: 'Тегів ще немає', emptyText: 'Додайте тег, щоб групувати новини.',
       selectable: false, actions: ['edit'], sort: { key: 'title', dir: 'asc' },
       cols: [
@@ -141,7 +142,7 @@
       title: cur || 'Новий тег', back: { label: 'Теги', href: '#/tags' }, footer: 'save',
       meta: cur ? 'Використано в новинах: ' + count : 'Ще не збережено', footMeta: 'Назва зміниться в усіх новинах з цим тегом',
       sections: [{ title: 'Тег', fields: [
-        { id: 'name', type: 'text', label: 'Назва', req: true, max: 30, hint: 'Не повторюється. На сайті показується як #Назва', value: cur,
+        { id: 'name', type: 'text', label: 'Назва', lower: true, req: true, max: 30, hint: 'Не повторюється. Зберігається малими літерами, на сайті: #назва', value: cur,
           unique: function (x) { return A.data.tags.some(function (t) { return t !== cur && t.toLowerCase() === String(x).trim().toLowerCase(); }); }, uniqueMsg: 'Такий тег уже є' }
       ] }],
       onSave: function (val) { return A.ops.tag(cur, val.name); },

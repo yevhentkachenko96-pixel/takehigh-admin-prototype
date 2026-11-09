@@ -123,7 +123,7 @@
       var box = root.querySelector('.state-box');
       return A.migratePhotos(function (i, n) {
         if (box) box.innerHTML = '<h1 style="margin:0;font-size:20px">Переносимо фото в Dropbox</h1><p class="meta" style="margin:0">Перший вхід: фото сайту копіюються у ваш Dropbox. Фото ' + i + ' з ' + n + '. Не закривайте сторінку.</p><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + n + '" aria-valuenow="' + i + '"><span style="width:' + Math.round(i / n * 100) + '%"></span></div>';
-      }).then(function (m) { return A.applyCopyUpdates().then(function (c) { m.copy = c; return m; }); }).then(function (m) {
+      }).then(function (m) { return A.applyCopyUpdates().then(function (c) { m.copy = c; return A.applyDataFixes(); }).then(function (x) { m.copy = (m.copy || 0) + (x || 0); return m; }); }).then(function (m) {
         window.addEventListener('hashchange', A.route);
         A.route();
         if (m.done) A.toast('Фото перенесено в Dropbox: ' + m.done);

@@ -17,6 +17,7 @@
     var st = { vals: {}, photo: {}, q: {}, open: null, tried: false, status: cfg.status || 'draft', title: cfg.title, meta: cfg.meta, warn: [], saving: false };
     fields.forEach(function (f) {
       st.vals[f.id] = f.value !== undefined ? JSON.parse(JSON.stringify(f.value)) : (f.type === 'multi' ? [] : (f.type === 'photo' || f.type === 'map' ? null : ''));
+      if (f.type === 'map' && !A.isPoint(st.vals[f.id])) st.vals[f.id] = null;
       if (f.type === 'photo') {
         st.vals[f.id + '_author'] = (f.sub && f.sub.author) || '';
         st.vals[f.id + '_caption'] = (f.sub && f.sub.caption) || '';
@@ -88,15 +89,12 @@
           var exists = (f.options || []).concat(x).some(function (o) { return o.toLowerCase() === low; });
           var canNew = f.allowNew && low && !exists && q.trim().length <= (f.itemMax || 80);
           h += '<div class="suggest" role="listbox" aria-label="Підказки">' + sugg.map(function (o) { return '<button class="menu-item" type="button" role="option" data-act="chip-add" data-f="' + f.id + '" data-v="' + esc(o) + '">' + esc(o) + '</button>'; }).join('') +
-            (canNew ? '<button class="menu-item suggest-new" type="button" role="option" data-act="chip-new" data-f="' + f.id + '">' + icon('plus', 'i-sm') + esc((f.newText || 'Додати') + ': «' + q.trim() + '»') + '</button>' : '') +
+            (canNew ? '<button class="menu-item suggest-new" type="button" role="option" data-act="chip-new" data-f="' + f.id + '">' + icon('plus', 'i-sm') + esc((f.newText || 'Додати') + ': «' + (f.lower ? low : q.trim()) + '»') + '</button>' : '') +
             (!sugg.length && !canNew ? '<span class="menu-item muted">' + (q.trim().length > (f.itemMax || 80) ? 'Не більше ' + f.itemMax + ' символів' : 'Нічого не знайдено') + '</span>' : '') + '</div>';
         }
         h += '</div>';
       } else if (f.type === 'map') {
-        h += '<button class="map" type="button" id="' + dom + '" aria-label="Карта. Натисніть, щоб поставити точку" data-act="map" data-f="' + f.id + '"><span class="map-sea" aria-hidden="true"></span>' +
-          (x ? '<svg class="map-pin" viewBox="0 0 24 24" aria-hidden="true" style="left:' + x.x + '%;top:' + x.y + '%"><path d="M12 22s7-6.2 7-12a7 7 0 10-14 0c0 5.8 7 12 7 12z" fill="#B42318" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="10" r="2.5" fill="#fff"/></svg>' : '') +
-          '<span class="map-label">' + (x ? 'Точка: ' + x.x + ', ' + x.y : 'Точку не обрано. Натисніть на карту') + '</span></button>' +
-          (x ? '<div><button class="btn btn-ghost btn-sm" type="button" data-act="map-x" data-f="' + f.id + '">Прибрати точку</button></div>' : '');
+        h += '<div class="map-slot" data-map-slot="' + f.id + '"></div>';
       } else if (f.type === 'photo') {
         var p = st.photo[f.id], acc = f.accept || 'image/jpeg,image/png,image/webp', fmt = f.fmt || 'JPG, PNG або WebP · до ' + (f.limit || 10) + ' МБ';
         var fileIn = function (lab, c) { return '<label class="btn btn-secondary btn-sm' + (c || '') + '">' + lab + '<input class="sr-only" id="' + dom + '" type="file" accept="' + acc + '" data-file="' + f.id + '"></label>'; };
@@ -152,6 +150,7 @@
       else h += '<button class="btn btn-secondary" type="button" data-act="draft"' + dis + '>Зберегти як чернетку</button><button class="btn btn-primary" type="button" data-act="publish"' + dis + '>' + (st.saving ? 'Збереження…' : 'Опублікувати') + '</button>';
       h += '</div></div></div>';
       root.innerHTML = h;
+      mountMaps();
       if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus(); try { if (selS != null) el.setSelectionRange(selS, selE); } catch (e) {} } }
     }
 
@@ -161,7 +160,7 @@
       var R = errorsFor(mode);
       st.tried = mode;
       if (Object.keys(R.E).length) { render(); A.toast(mode === 'draft' ? 'Не збережено: виправте помилки' : 'Перевірте поля з помилками', true); var fe = root.querySelector('.is-invalid input, .is-invalid textarea, .is-invalid select, .is-invalid button'); if (fe) fe.focus(); return; }
-      var status = kind === 'publish' ? 'pub' : (kind === 'draft' ? (st.status === 'pub' ? 'pub' : st.status === 'arch' ? 'arch' : 'draft') : st.status);
+      var status = kind === 'publish' ? 'pub' : (kind === 'draft' ? (st.status === 'pub' ? 'pub' : 'draft') : st.status);
       var warn = Object.keys(R.W).map(function (id) { return byId(id).label; });
       fields.forEach(function (f) { if (f.slug && !st.vals[f.id] && f.slugFrom) st.vals[f.id] = A.slugify(st.vals[f.slugFrom]); });
       st.saving = true; render();
@@ -188,8 +187,88 @@
       });
     }
 
+    /* ---------- карта (OpenStreetMap через Leaflet) ----------
+       Блок карти створюється один раз і переноситься в кожну нову розмітку форми, щоб не перезавантажувати карту. */
+    var maps = {};
+    var PIN = '<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 10-14 0c0 5.8 7 12 7 12z" fill="#B42318" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="10" r="2.5" fill="#fff"/></svg>';
+    function fmtPoint(p) { return p ? p.lat.toFixed(5) + ', ' + p.lng.toFixed(5) : ''; }
+    function mapBlock(f) {
+      var m = maps[f.id]; if (m) return m;
+      var el = document.createElement('div'); el.className = 'geo';
+      el.innerHTML = '<div class="geo-search" role="search"><input class="input" type="search" placeholder="Знайти місце: наприклад, Nazaré" aria-label="Пошук місця на карті" data-geo="q">' +
+        '<button class="btn btn-secondary" type="button" data-geo="find">Знайти</button></div>' +
+        '<div class="geo-results" data-geo="results" hidden></div>' +
+        '<div class="geo-map" id="f-' + f.id + '" role="application" aria-label="Карта. Натисніть, щоб поставити точку; точку можна перетягнути"></div>' +
+        '<div class="geo-foot"><span class="meta" data-geo="coords" aria-live="polite"></span><button class="btn btn-ghost btn-sm" type="button" data-geo="clear">Прибрати точку</button></div>';
+      m = maps[f.id] = { el: el, map: null, marker: null };
+      var q = el.querySelector('[data-geo="q"]'), res = el.querySelector('[data-geo="results"]');
+      function setPoint(lat, lng, zoom) {
+        if (m.setPoint) { m.setPoint(lat, lng); if (zoom) m.map.setView([lat, lng], zoom); }
+      }
+      function sync() {
+        var p = st.vals[f.id];
+        el.querySelector('[data-geo="coords"]').textContent = p ? 'Точка: ' + fmtPoint(p) + ' · її можна перетягнути' : (m.map ? 'Точку не обрано. Натисніть на карту або знайдіть місце' : '');
+        el.querySelector('[data-geo="clear"]').hidden = !p;
+      }
+      m.sync = sync;
+      function search() {
+        var text = q.value.trim(); if (!text) return;
+        res.hidden = false; res.innerHTML = '<span class="meta">Шукаємо…</span>';
+        fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=en,uk&q=' + encodeURIComponent(text))
+          .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(function (list) {
+            if (!list.length) { res.innerHTML = '<span class="meta">Нічого не знайдено. Спробуйте іншу назву або поставте точку на карті вручну.</span>'; return; }
+            res.innerHTML = list.map(function (x, i) { return '<button class="menu-item" type="button" data-geo="pick" data-i="' + i + '">' + esc(x.display_name) + '</button>'; }).join('');
+            res._list = list;
+          }, function () { res.innerHTML = '<span class="meta">Пошук зараз недоступний. Поставте точку на карті вручну.</span>'; });
+      }
+      el.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-geo]'); if (!b) return;
+        var g = b.getAttribute('data-geo');
+        if (g === 'find') search();
+        else if (g === 'clear') { st.vals[f.id] = null; if (m.marker) { m.map.removeLayer(m.marker); m.marker = null; } sync(); }
+        else if (g === 'pick') {
+          var x = res._list[+b.getAttribute('data-i')]; res.hidden = true;
+          setPoint(+x.lat, +x.lon, 11);
+          // назва локації заповнюється з пошуку, лише якщо вона порожня
+          if (f.placeField && !String(st.vals[f.placeField] || '').trim()) {
+            st.vals[f.placeField] = x.name || String(x.display_name).split(',')[0];
+            var pi = document.getElementById('f-' + f.placeField); if (pi) pi.value = st.vals[f.placeField];
+          }
+        }
+      });
+      q.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); search(); } else if (e.key === 'Escape') res.hidden = true; });
+      if (!window.L) {
+        el.querySelector('.geo-map').innerHTML = '<p class="meta" style="padding:16px;margin:0">Карта не завантажилась (немає звʼязку з OpenStreetMap). Решта картки працює, точку можна додати пізніше.</p>';
+        el.querySelector('.geo-search').hidden = true;
+      }
+      return m;
+    }
+    function mountMaps() {
+      fields.forEach(function (f) {
+        if (f.type !== 'map') return;
+        var slot = root.querySelector('[data-map-slot="' + f.id + '"]'); if (!slot) return;
+        var m = mapBlock(f); slot.appendChild(m.el);
+        if (window.L && !m.map) {
+          var p = st.vals[f.id];
+          m.map = L.map(m.el.querySelector('.geo-map'), { scrollWheelZoom: false }).setView(p ? [p.lat, p.lng] : [39.6, -9.07], p ? 10 : 5);
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(m.map);
+          m.map.on('click', function (e) { m.el.querySelector('[data-geo="results"]').hidden = true; m.setPoint(e.latlng.lat, e.latlng.lng); });
+          m.setPoint = function (lat, lng) {
+            st.vals[f.id] = { lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 };
+            if (!m.marker) { m.marker = L.marker([lat, lng], { draggable: true, keyboard: false, icon: L.divIcon({ className: 'geo-pin', html: PIN, iconSize: [30, 30], iconAnchor: [15, 30] }) }).addTo(m.map); m.marker.on('dragend', function () { var q2 = m.marker.getLatLng(); m.setPoint(q2.lat, q2.lng); }); }
+            else m.marker.setLatLng([lat, lng]);
+            m.sync();
+          };
+          if (p) m.setPoint(p.lat, p.lng);
+        }
+        if (m.map) m.map.invalidateSize();
+        m.sync();
+      });
+    }
+
     function addChip(f, v) {
-      v = String(v || '').trim(); if (!v) return;
+      v = String(v || '').trim(); if (f.lower) v = v.toLowerCase(); if (!v) return;
       var x = st.vals[f.id];
       if (x.some(function (c) { return c.toLowerCase() === v.toLowerCase(); })) return;
       var ex = (f.options || []).find(function (o) { return o.toLowerCase() === v.toLowerCase(); });
@@ -201,7 +280,9 @@
     root.oninput = function (e) {
       var t = e.target;
       if (t.dataset.f) {
-        var f = byId(t.dataset.f); st.vals[f.id] = t.value;
+        var f = byId(t.dataset.f);
+        if (f.lower && t.value !== t.value.toLowerCase()) { var cs = t.selectionStart, ce = t.selectionEnd; t.value = t.value.toLowerCase(); try { t.setSelectionRange(cs, ce); } catch (x) {} }
+        st.vals[f.id] = t.value;
         var cn = document.getElementById('cn-' + f.id); if (cn && f.max) { cn.textContent = t.value.length + ' / ' + f.max; cn.classList.toggle('over', t.value.length > f.max); }
       } else if (t.dataset.sub) {
         st.vals[t.dataset.sub] = t.value; var m = +t.dataset.max, c2 = document.getElementById('cn-' + t.dataset.sub);
@@ -216,9 +297,19 @@
       if (st.tried && (t.dataset.f || t.dataset.sub)) setTimeout(render, 0);
     };
     root.onfocusin = function (e) { var t = e.target; if (t.dataset && t.dataset.multi && st.open !== t.dataset.multi) { st.open = t.dataset.multi; render(); } };
+    // Список підказок лишається відкритим після вибору (можна обрати кілька підряд).
+    // Закривається кліком поза полем, клавішею Esc або переходом Tab до іншого поля.
+    function closeSuggest() { if (st.open) { st.open = null; render(); } }
+    function outside(e) {
+      if (!document.contains(root)) { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); return; }
+      if (st.open && !(e.target.closest && e.target.closest('#fw-' + st.open))) closeSuggest();
+    }
+    document.addEventListener('mousedown', outside, true);
+    document.addEventListener('touchstart', outside, true);
     root.onfocusout = function (e) {
       var t = e.target; if (!t.dataset || !t.dataset.multi) return;
-      setTimeout(function () { var a = document.activeElement; if (st.open && !(a && a.closest && a.closest('#fw-' + st.open))) { st.open = null; render(); } }, 120);
+      // фокус пішов в інше поле з клавіатури (Tab); клік мишею обробляє outside()
+      setTimeout(function () { var a = document.activeElement; if (st.open && a && a !== document.body && root.contains(a) && !a.closest('#fw-' + st.open)) closeSuggest(); }, 0);
     };
     root.onkeydown = function (e) {
       var t = e.target;
@@ -236,8 +327,6 @@
       if (act === 'chip-x') { st.vals[f.id].splice(+t.dataset.i, 1); render(); }
       else if (act === 'chip-add') addChip(f, t.dataset.v);
       else if (act === 'chip-new') addChip(f, st.q[f.id]);
-      else if (act === 'map') { var r = t.getBoundingClientRect(); st.vals[f.id] = { x: Math.round((e.clientX - r.left) / r.width * 100), y: Math.round((e.clientY - r.top) / r.height * 100) }; render(); }
-      else if (act === 'map-x') { st.vals[f.id] = null; render(); }
       else if (act === 'photo-x') { st.vals[f.id] = null; st.photo[f.id] = { state: 'empty' }; render(); }
       else if (act === 'tool') {
         var ta = document.getElementById('f-' + f.id), s = ta.selectionStart, en = ta.selectionEnd, v = ta.value, sel = v.slice(s, en);

@@ -52,6 +52,9 @@ svg.i-sm{width:14px;height:14px}
 .btn-ghost{color:var(--text)} .btn-ghost:hover{background:#EAE7D6;color:var(--text)}
 .btn-sm{min-height:32px;padding:4px 12px;font-size:13px}
 .btn-danger-text{color:var(--error)}
+.btn-danger{background:var(--error);color:#fff}
+.btn-danger:hover{background:#912018;color:#fff}
+.btn:disabled{opacity:.6;cursor:default}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:var(--r-sm);border:1px solid transparent;background:none;cursor:pointer;color:var(--muted)}
 .icon-btn:hover{background:#EFEDE2;color:var(--text)}
@@ -196,10 +199,6 @@ svg.i-sm{width:14px;height:14px}
 .input-sm{min-height:32px;padding:4px 8px;font-size:13px}
 
 /* карта */
-.map{position:relative;height:220px;border-radius:var(--r);border:1px solid var(--border-strong);overflow:hidden;cursor:crosshair;padding:0;width:100%;display:block;background-color:#DCE4DA;background-image:linear-gradient(rgba(255,255,255,.55) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.55) 1px,transparent 1px);background-size:40px 40px}
-.map-sea{position:absolute;left:0;top:0;bottom:0;width:38%;background:#BFD0D6}
-.map-pin{position:absolute;width:28px;height:28px;margin:-28px 0 0 -14px;color:var(--error)}
-.map-label{position:absolute;left:12px;bottom:10px;font-size:12px;background:rgba(255,255,255,.9);padding:4px 8px;border-radius:4px;color:var(--text)}
 
 /* редактор */
 .editor{border:1px solid var(--border-strong);border-radius:var(--r-sm);background:#fff;overflow:hidden}
@@ -346,7 +345,6 @@ svg.i-sm{width:14px;height:14px}
   .footbar .meta{flex-basis:100%;margin:0;font-size:12px}
   .footbar .btn{flex:1 1 auto}
   .prefix{font-size:12px;padding:0 6px}
-  .map{height:180px}
   .banner{font-size:14px}
 }
 .mob-note{display:none}
@@ -376,3 +374,22 @@ svg.i-sm{width:14px;height:14px}
 .editor textarea{font-family:inherit}
 @media (max-width:760px){ .side-links{display:none} .side-nav.is-open .side-links{display:flex} }
 [hidden]{display:none!important}
+
+/* карта */
+.geo{display:flex;flex-direction:column;gap:8px}
+.geo-search{display:flex;gap:8px}
+.geo-search .input{flex:1;min-width:0}
+.geo-results{display:flex;flex-direction:column;border:1px solid var(--border-strong);border-radius:var(--r);padding:6px;background:#fff}
+.geo-results .menu-item{white-space:normal;font-size:13px;height:auto;line-height:1.35}
+.geo-results .meta{padding:6px 10px}
+.geo-map{height:280px;border-radius:var(--r);border:1px solid var(--border-strong);overflow:hidden;background:#E8EEF0;z-index:0}
+.geo-map.leaflet-container{font:inherit}
+.geo-pin{background:none;border:0}
+.geo-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px}
+/* вікно підтвердження */
+.modal-back{position:fixed;inset:0;background:rgba(12,12,12,.4);z-index:60}
+.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:61;width:min(440px,calc(100vw - 32px));background:#fff;border-radius:var(--r);padding:24px;display:flex;flex-direction:column;gap:12px;box-shadow:0 16px 48px rgba(12,12,12,.2)}
+.modal h2{margin:0;font-size:18px}
+.modal p{margin:0;color:var(--muted);line-height:1.5}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:8px}
+@media (max-width:720px){.geo-map{height:220px}.geo-search{flex-wrap:wrap}}

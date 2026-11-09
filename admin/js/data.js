@@ -34,6 +34,8 @@
     if (D.log.length > 500) D.log.length = 500;
   }
   var nameOf = function (r) { return r ? (r.title || r.name || r.id) : '—'; };
+  // теги завжди в нижньому регістрі й без повторів
+  function uniqLower(list) { var out = []; (list || []).forEach(function (t) { t = A.tagKey(t); if (t && out.indexOf(t) < 0) out.push(t); }); return out; }
   function exclusive(list, rec, key) { if (rec && rec[key]) list.forEach(function (x) { if (x !== rec) x[key] = false; }); }
   function statusAct(from, to) { return to === 'pub' ? 'Опубліковано' : to === 'arch' ? 'Переміщено в архів' : (from === 'pub' ? 'Знято з публікації' : 'Змінено статус'); }
 
@@ -68,7 +70,8 @@
         else log(D, label || nameOf(r), SEC[entity], 'Відредаговано');
         if (entity === 'news') {
           exclusive(L, r, 'featured');
-          (r.tags || []).forEach(function (t) { if (!D.tags.some(function (x) { return x.toLowerCase() === t.toLowerCase(); })) D.tags.push(t); });
+          r.tags = uniqLower(r.tags);
+          r.tags.forEach(function (t) { if (D.tags.indexOf(t) < 0) D.tags.push(t); });
         }
         return r;
       });
@@ -95,11 +98,12 @@
     // новий тег або перейменування (у всіх новинах)
     tag: function (from, to) {
       return A.commit(function (D) {
-        to = String(to || '').trim(); if (!to) return false;
-        if (!from) { D.tags.push(to); log(D, to, SEC.tags, 'Створено'); return to; }
+        to = A.tagKey(to); if (!to) return false;
+        if (!from) { if (D.tags.indexOf(to) < 0) D.tags.push(to); log(D, to, SEC.tags, 'Створено'); return to; }
         if (from === to) return false;
         var i = D.tags.indexOf(from); if (i >= 0) D.tags[i] = to; else D.tags.push(to);
-        D.news.forEach(function (n) { n.tags = (n.tags || []).map(function (t) { return t === from ? to : t; }); });
+        D.tags = uniqLower(D.tags);
+        D.news.forEach(function (n) { n.tags = uniqLower((n.tags || []).map(function (t) { return t === from ? to : t; })); });
         log(D, to, SEC.tags, 'Перейменовано', from, to);
         return to;
       });
@@ -111,6 +115,18 @@
         Object.keys(rec).forEach(function (k) { P[k] = rec[k]; });
         log(D, label || page, 'Сторінки', 'Відредаговано');
         return true;
+      });
+    },
+    // повне видалення записів (у прототипі; на робочому сайті — мʼяке видалення, див. BRD)
+    remove: function (entity, ids) {
+      return A.commit(function (D) {
+        var L = D[entity], n = 0;
+        D[entity] = L.filter(function (r) {
+          if (ids.indexOf(r.id) < 0) return true;
+          log(D, nameOf(r), SEC[entity], 'Видалено', A.STATUS[r.status] || '', ''); n++;
+          return false;
+        });
+        return n ? n : false;
       });
     },
     resetAll: function () {
@@ -182,6 +198,33 @@
         if (r && r[u.field] === u.from) { r[u.field] = u.to; r.changed = A.now(); log(D, r.title || r.name || r.id, SEC[u.entity], u.act || 'Оновлено текст (правки копірайтингу)', u.field === 'status' ? A.STATUS[u.from] : u.from, u.field === 'status' ? A.STATUS[u.to] : u.to); }
       });
       return todo.length;
+    });
+  };
+
+  /* ---------- разові виправлення даних після оновлення адмінки ----------
+     Кожне виправлення перевіряє, чи воно ще потрібне, тому повторний вхід нічого не змінює. */
+  A.applyDataFixes = function () {
+    var D0 = A.data, need = false;
+    var lowerOk = function (L) { return (L || []).every(function (t) { return t === A.tagKey(t); }) && uniqLower(L).length === (L || []).length; };
+    if (!lowerOk(D0.tags) || (D0.news || []).some(function (n) { return !lowerOk(n.tags); })) need = true;
+    Object.keys(D0).forEach(function (k) { if (Array.isArray(D0[k]) && D0[k].some(function (r) { return r && r.status === 'arch'; })) need = true; });
+    if ((D0.news || []).some(function (n) { return n.point && !A.isPoint(n.point); })) need = true;
+    if (!need) return Promise.resolve(0);
+    return A.commit(function (D) {
+      var n = 0;
+      // 1. теги в нижній регістр, однакові зливаються
+      var before = (D.tags || []).join('|');
+      D.tags = uniqLower(D.tags);
+      (D.news || []).forEach(function (x) { var b = (x.tags || []).join('|'); x.tags = uniqLower(x.tags); x.tags.forEach(function (t) { if (D.tags.indexOf(t) < 0) D.tags.push(t); }); if (b !== x.tags.join('|')) n++; });
+      if (before !== D.tags.join('|')) { log(D, 'Усі теги', SEC.tags, 'Переведено в нижній регістр', before.split('|').join(', '), D.tags.join(', ')); n++; }
+      // 2. архіву більше немає: архівні записи стають чернетками
+      Object.keys(D).forEach(function (k) {
+        if (!Array.isArray(D[k]) || k === 'log' || k === 'tags') return;
+        D[k].forEach(function (r) { if (r && r.status === 'arch') { r.status = 'draft'; r.changed = A.now(); log(D, nameOf(r), SEC[k] || k, 'Архів скасовано: переведено в чернетку', A.STATUS.arch, A.STATUS.draft); n++; } });
+      });
+      // 3. старі точки «на малюнку» не є координатами
+      (D.news || []).forEach(function (x) { if (x.point && !A.isPoint(x.point)) { x.point = null; log(D, nameOf(x), SEC.news, 'Скинуто точку на карті (нова карта)'); n++; } });
+      return n;
     });
   };
 
