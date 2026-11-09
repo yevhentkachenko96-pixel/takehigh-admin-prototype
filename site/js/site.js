@@ -182,6 +182,15 @@
     // сусідні рядки одного абзацу зʼєднуються
     return out.join('\n').replace(/<\/p>\n<p>/g, ' ').replace(/\n+/g, '');
   }
+  // Location: назва з адмінки; якщо є точка на карті — посилання на Google Maps (на телефоні відкриває застосунок карт)
+  function locationRow(n) {
+    var p = n.point, ok = p && typeof p.lat === 'number' && typeof p.lng === 'number';
+    var name = String(n.place || '').trim(); if (name === '—') name = '';
+    if (!ok) return name ? '<div><dt>Location</dt><dd>' + esc(name) + '</dd></div>' : '';
+    var url = 'https://www.google.com/maps/search/?api=1&query=' + p.lat + ',' + p.lng;
+    return '<div><dt>Location</dt><dd><a class="ext" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(name || 'View on map') +
+      '<span aria-hidden="true"> ↗</span><span class="sr-only"> (Google Maps, opens in a new tab)</span></a></dd></div>';
+  }
   function renderNews(slug) {
     var all = published();
     var n = all.find(function (x) { return slugOf(x) === slug || x.id === slug; });
@@ -197,7 +206,7 @@
       '<div><dt>Date</dt><dd>' + esc(fd(n.date)) + '</dd></div>' +
       (n.section ? '<div><dt>Section</dt><dd><a href="#/news?section=' + encodeURIComponent(n.section) + '">' + esc(n.section) + '</a></dd></div>' : '') +
       (n.type ? '<div><dt>Type</dt><dd>' + esc(n.type) + '</dd></div>' : '') +
-      (n.place ? '<div><dt>Location</dt><dd>' + esc(n.place) + '</dd></div>' : '') +
+      locationRow(n) +
       (people.length ? '<div><dt>People</dt><dd>' + people.map(function (p, i) { return i < (n.people || []).length ? '<a href="#/home/club">' + esc(p) + '</a>' : esc(p); }).join(', ') + '</dd></div>' : '') +
       (n.partner ? '<div><dt>Partner</dt><dd>' + esc(n.partner) + '</dd></div>' : '') +
       '</dl>' + ((n.tags || []).length ? '<div class="tagrow" aria-label="Tags">' + n.tags.map(function (t) { return '<a href="#/news?tag=' + encodeURIComponent(t) + '">#' + esc(t) + '</a>'; }).join('') + '</div>' : '') +

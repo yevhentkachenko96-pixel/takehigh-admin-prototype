@@ -7,13 +7,9 @@
   var SESSION = 'th-gh-session';
   var root = document.getElementById('root');
 
-  // Розділи меню: [ключ маршруту, назва, етап перенесення]
+  // Розділи меню: [ключ маршруту, назва]. У прототипі лише ті розділи, які реально працюють.
   var GROUPS = [
-    ['Контент', [['news', 'Новини', 1], ['tags', 'Теги', 1], ['events', 'Події', 2], ['films', 'Фільми', 2], ['results', 'Результати', 2]]],
-    ['Люди і партнери', [['members', 'Учасники', 2], ['partners', 'Партнери', 2], ['cases', 'Кейси', 2]]],
-    ['Merch', [['products', 'Товари', 3], ['collections', 'Колекції', 3]]],
-    ['Сторінки', [['page-home', 'Home', 3], ['page-performance', 'Performance', 3], ['page-club', 'Club', 3], ['page-media', 'Media', 3], ['page-partnerships', 'Partnerships', 3], ['page-access', 'Access', 3], ['page-inside', 'Inside Nazaré', 3], ['page-merch', 'Merch', 3]]],
-    ['Інше', [['legal', 'Юридичні сторінки', 3], ['settings', 'Загальні налаштування', 3], ['log', 'Журнал змін', 3]]]
+    ['Контент', [['news', 'Новини'], ['tags', 'Теги']]]
   ];
 
   A.saveError = function (e) {
@@ -87,18 +83,15 @@
     var parts = hash.replace(/^#\/?/, '').split('/').map(function (x) { try { return decodeURIComponent(x); } catch (e) { return x; } });
     var sec = parts[0] || 'news', rec = parts[1];
     var all = []; GROUPS.forEach(function (g) { g[1].forEach(function (it) { all.push(it); }); });
-    var item = all.find(function (it) { return it[0] === (sec === 'news-texts' ? 'news' : sec); }) || all[0];
+    var item = all.find(function (it) { return it[0] === (sec === 'news-texts' ? 'news' : sec); });
+    // невідомий або прибраний розділ → Новини
+    if (!item) { location.replace('#/news'); return; }
     root.innerHTML = '<div class="app">' + sidebar(item[0]) + '<main class="main" id="main"></main></div>';
     var main = document.getElementById('main');
     var s = A.screens;
     if (sec === 'news-texts') { current = s.newsTexts(main); current = { kind: 'form', ctl: current }; document.title = 'Тексти блоків новин · TAKE HIGH · Адмінка'; window.scrollTo(0, 0); return; }
     if (item[0] === 'news') current = rec ? s.newsCard(main, rec) : s.news(main);
     else if (item[0] === 'tags') current = rec ? s.tagCard(main, rec) : s.tags(main);
-    else {
-      current = null;
-      main.innerHTML = '<header class="page-head"><div class="head-left"><h1>' + esc(item[1]) + '</h1></div></header>' +
-        '<div class="placeholder"><h2>Розділ переноситься</h2><p class="meta" style="margin:0">Цей розділ зʼявиться в новій адмінці на етапі ' + item[2] + '. Зараз працюють Новини і Теги.</p></div>';
-    }
     current = current ? { kind: rec ? 'form' : 'list', ctl: current } : null;
     document.title = item[1] + ' · TAKE HIGH · Адмінка';
     window.scrollTo(0, 0);

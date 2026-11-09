@@ -58,11 +58,11 @@
         ] },
         { title: 'Теги і люди', fields: [
           { id: 'tags', type: 'multi', label: 'Теги', lower: true, options: D.tags.slice(), allowNew: true, itemMax: 30, newText: 'Створити тег', ph: 'Почніть вводити або створіть новий тег', hint: 'Теги завжди малими літерами, на сайті: #nazaré. Новий тег додається в довідник', value: v('tags', []).slice() },
-          { id: 'people', type: 'multi', label: 'Люди з команди', options: D.members.filter(function (m) { return m.status === 'pub'; }).map(function (m) { return m.name; }), ph: 'Оберіть учасників', hint: 'Лише опубліковані учасники. На сайті — посилання на Club', value: v('people', []).map(memberName) },
-          { id: 'others', type: 'multi', label: 'Інші люди', allowNew: true, itemMax: 80, newText: 'Додати', ph: 'Введіть імʼя і натисніть Enter', hint: 'Для людей, яких немає серед учасників', value: v('others', []).slice() }
+          { id: 'people', type: 'multi', label: 'Люди з команди', options: D.members.filter(function (m) { return m.status === 'pub'; }).map(function (m) { return m.name; }), ph: 'Оберіть учасників', noneText: 'Нічого не знайдено серед опублікованих учасників', hint: 'Лише опубліковані учасники. На сайті — посилання на Club', value: v('people', []).map(memberName) },
+          { id: 'others', type: 'multi', label: 'Інші люди', allowNew: true, itemMax: 80, newText: 'Додати', ph: 'Введіть імʼя і натисніть Enter', emptyHint: 'Введіть імʼя, щоб додати', hint: 'Для людей, яких немає серед учасників', value: v('others', []).slice() }
         ] },
         { title: 'Локація', fields: [
-          { id: 'place', type: 'text', label: 'Назва локації', max: 100, ph: 'Наприклад: Nazaré', value: v('place', '') },
+          { id: 'place', type: 'text', label: 'Назва локації', max: 100, ph: 'Наприклад: Nazaré', hint: 'Якщо на карті є точка, на сайті назва стане посиланням на неї в Google Maps', value: v('place', '') },
           { id: 'point', type: 'map', label: 'Точка на карті', placeField: 'place', value: v('point', null) }
         ] },
         { title: 'Головне фото', fields: [

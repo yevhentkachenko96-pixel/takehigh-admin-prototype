@@ -14,7 +14,7 @@
   A.form = function (root, cfg) {
     var fields = [];
     cfg.sections.forEach(function (s) { s.fields.forEach(function (f) { fields.push(f); }); });
-    var st = { vals: {}, photo: {}, q: {}, open: null, tried: false, status: cfg.status || 'draft', title: cfg.title, meta: cfg.meta, warn: [], saving: false };
+    var st = { vals: {}, photo: {}, q: {}, act: {}, open: null, tried: false, status: cfg.status || 'draft', title: cfg.title, meta: cfg.meta, warn: [], saving: false };
     fields.forEach(function (f) {
       st.vals[f.id] = f.value !== undefined ? JSON.parse(JSON.stringify(f.value)) : (f.type === 'multi' ? [] : (f.type === 'photo' || f.type === 'map' ? null : ''));
       if (f.type === 'map' && !A.isPoint(st.vals[f.id])) st.vals[f.id] = null;
@@ -78,19 +78,18 @@
         h += '<select class="select" id="' + dom + '"' + inv + desc + ' data-f="' + f.id + '"><option value="">' + esc(f.selPh || 'Оберіть…') + '</option>' +
           (f.options || []).map(function (o) { return '<option value="' + esc(o) + '"' + (o === x ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
       } else if (f.type === 'multi') {
-        var q = st.q[f.id] || '', atMax = f.maxItems && x.length >= f.maxItems;
-        h += '<div class="chips-box" style="position:relative">' + x.map(function (c, i) {
+        var q = st.q[f.id] || '', atMax = f.maxItems && x.length >= f.maxItems, open = st.open === f.id && !atMax;
+        var items = open ? suggestItems(f) : [], act = Math.min(st.act[f.id] || 0, Math.max(items.length - 1, 0));
+        h += '<div class="chips-box" data-box="' + f.id + '">' + x.map(function (c, i) {
           return '<span class="chip">' + esc(c) + '<button type="button" aria-label="Прибрати ' + esc(c) + '" data-act="chip-x" data-f="' + f.id + '" data-i="' + i + '">' + icon('x', 'i-sm') + '</button></span>';
         }).join('') +
-          '<input class="chip-input" id="' + dom + '" type="text" value="' + esc(q) + '" placeholder="' + esc(atMax ? 'Досягнуто максимуму' : (f.ph || '')) + '"' + (atMax ? ' disabled' : '') + desc + ' autocomplete="off" data-multi="' + f.id + '" role="combobox" aria-expanded="' + (st.open === f.id) + '">';
-        if (st.open === f.id && !atMax) {
-          var low = q.trim().toLowerCase();
-          var sugg = (f.options || []).filter(function (o) { return x.indexOf(o) < 0 && (!low || o.toLowerCase().indexOf(low) >= 0); }).slice(0, 8);
-          var exists = (f.options || []).concat(x).some(function (o) { return o.toLowerCase() === low; });
-          var canNew = f.allowNew && low && !exists && q.trim().length <= (f.itemMax || 80);
-          h += '<div class="suggest" role="listbox" aria-label="Підказки">' + sugg.map(function (o) { return '<button class="menu-item" type="button" role="option" data-act="chip-add" data-f="' + f.id + '" data-v="' + esc(o) + '">' + esc(o) + '</button>'; }).join('') +
-            (canNew ? '<button class="menu-item suggest-new" type="button" role="option" data-act="chip-new" data-f="' + f.id + '">' + icon('plus', 'i-sm') + esc((f.newText || 'Додати') + ': «' + (f.lower ? low : q.trim()) + '»') + '</button>' : '') +
-            (!sugg.length && !canNew ? '<span class="menu-item muted">' + (q.trim().length > (f.itemMax || 80) ? 'Не більше ' + f.itemMax + ' символів' : 'Нічого не знайдено') + '</span>' : '') + '</div>';
+          '<input class="chip-input" id="' + dom + '" type="text" value="' + esc(q) + '" placeholder="' + esc(atMax ? 'Досягнуто максимуму' : (f.ph || '')) + '"' + (atMax ? ' disabled' : '') + desc +
+          ' autocomplete="off" data-multi="' + f.id + '" role="combobox" aria-autocomplete="list" aria-controls="sg-' + f.id + '" aria-expanded="' + open + '"' + (open && items.length ? ' aria-activedescendant="sg-' + f.id + '-' + act + '"' : '') + '>';
+        if (open) {
+          h += '<div class="suggest" id="sg-' + f.id + '" role="listbox" aria-label="Варіанти">' + items.map(function (it, i) {
+            return '<button class="menu-item' + (it.isNew ? ' suggest-new' : '') + (i === act ? ' is-active' : '') + '" type="button" role="option" id="sg-' + f.id + '-' + i + '" aria-selected="' + (i === act) + '" tabindex="-1" data-act="' + (it.isNew ? 'chip-new' : 'chip-add') + '" data-f="' + f.id + '" data-v="' + esc(it.v) + '">' +
+              (it.isNew ? icon('plus', 'i-sm') + esc((f.newText || 'Додати') + ' «' + it.v + '»') : esc(it.v)) + '</button>';
+          }).join('') + (items.length ? '' : '<span class="menu-item muted">' + esc(emptyText(f)) + '</span>') + '</div>';
         }
         h += '</div>';
       } else if (f.type === 'map') {
@@ -151,6 +150,7 @@
       h += '</div></div></div>';
       root.innerHTML = h;
       mountMaps();
+      scrollActive();
       if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus(); try { if (selS != null) el.setSelectionRange(selS, selE); } catch (e) {} } }
     }
 
@@ -267,6 +267,34 @@
       });
     }
 
+    /* ---------- список варіантів для полів з чипами ----------
+       Усі доступні варіанти за алфавітом; під час вводу — лише ті, що містять текст.
+       «Створити …» — останнім рядком, коли точного збігу немає (і поле дозволяє нові значення). */
+    function suggestItems(f) {
+      var x = st.vals[f.id], q = (st.q[f.id] || '').trim(), low = q.toLowerCase();
+      var out = (f.options || []).filter(function (o) { return x.indexOf(o) < 0 && (!low || o.toLowerCase().indexOf(low) >= 0); })
+        .sort(function (a, b) { return a.localeCompare(b, 'uk'); }).map(function (o) { return { v: o }; });
+      var exact = (f.options || []).concat(x).some(function (o) { return o.toLowerCase() === low; });
+      if (f.allowNew && low && !exact && q.length <= (f.itemMax || 80)) out.push({ v: f.lower ? low : q, isNew: true });
+      return out;
+    }
+    function emptyText(f) {
+      var q = (st.q[f.id] || '').trim();
+      if (q && f.itemMax && q.length > f.itemMax) return 'Не більше ' + f.itemMax + ' символів';
+      if (!q && f.allowNew && !(f.options || []).length) return f.emptyHint || 'Введіть значення, щоб додати';
+      if (!q) return 'Усі варіанти вже обрано';
+      return f.noneText || 'Нічого не знайдено';
+    }
+    function openSuggest(id) {
+      st.open = id; st.act[id] = 0; render();
+      var el = document.getElementById('f-' + id); if (el && document.activeElement !== el) el.focus();
+      // на телефоні піднімаємо поле вгору, щоб список не ховався під клавіатурою і нижньою панеллю
+      if (window.matchMedia && matchMedia('(max-width:760px)').matches) { var w = document.getElementById('fw-' + id);
+        if (w) { var hd = document.querySelector('.side'), cs = hd && getComputedStyle(hd), off = cs && (cs.position === 'sticky' || cs.position === 'fixed') ? hd.getBoundingClientRect().bottom : 0;
+          window.scrollTo(0, window.scrollY + w.getBoundingClientRect().top - Math.max(off, 0) - 12); } }
+    }
+    function scrollActive() { if (!st.open) return; var a = root.querySelector('#sg-' + st.open + ' .is-active'); if (a && a.scrollIntoView) a.scrollIntoView({ block: 'nearest' }); }
+
     function addChip(f, v) {
       v = String(v || '').trim(); if (f.lower) v = v.toLowerCase(); if (!v) return;
       var x = st.vals[f.id];
@@ -274,7 +302,7 @@
       var ex = (f.options || []).find(function (o) { return o.toLowerCase() === v.toLowerCase(); });
       if (!ex && !f.allowNew) return;
       if (f.itemMax && v.length > f.itemMax) return;
-      x.push(ex || v); st.q[f.id] = ''; render();
+      x.push(ex || v); st.q[f.id] = ''; st.act[f.id] = 0; st.open = f.id; render();
     }
 
     root.oninput = function (e) {
@@ -287,7 +315,7 @@
       } else if (t.dataset.sub) {
         st.vals[t.dataset.sub] = t.value; var m = +t.dataset.max, c2 = document.getElementById('cn-' + t.dataset.sub);
         if (c2) { c2.textContent = t.value.length + ' / ' + m; c2.classList.toggle('over', t.value.length > m); }
-      } else if (t.dataset.multi) { st.q[t.dataset.multi] = t.value; st.open = t.dataset.multi; render(); }
+      } else if (t.dataset.multi) { st.q[t.dataset.multi] = t.value; st.open = t.dataset.multi; st.act[t.dataset.multi] = 0; render(); }
     };
     root.onchange = function (e) {
       var t = e.target;
@@ -296,7 +324,7 @@
       // після переходу фокусу в інше поле: перемальовуємо, коли фокус уже там, щоб його не загубити
       if (st.tried && (t.dataset.f || t.dataset.sub)) setTimeout(render, 0);
     };
-    root.onfocusin = function (e) { var t = e.target; if (t.dataset && t.dataset.multi && st.open !== t.dataset.multi) { st.open = t.dataset.multi; render(); } };
+    root.onfocusin = function (e) { var t = e.target; if (t.dataset && t.dataset.multi && st.open !== t.dataset.multi) openSuggest(t.dataset.multi); };
     // Список підказок лишається відкритим після вибору (можна обрати кілька підряд).
     // Закривається кліком поза полем, клавішею Esc або переходом Tab до іншого поля.
     function closeSuggest() { if (st.open) { st.open = null; render(); } }
@@ -315,18 +343,34 @@
       var t = e.target;
       if (t.dataset && t.dataset.multi) {
         var f = byId(t.dataset.multi);
-        if (e.key === 'Enter') { e.preventDefault(); var q = (st.q[f.id] || '').trim(); if (!q) return; var low = q.toLowerCase(); var hit = (f.options || []).find(function (o) { return o.toLowerCase() === low; }) || (f.options || []).find(function (o) { return st.vals[f.id].indexOf(o) < 0 && o.toLowerCase().indexOf(low) >= 0; }); addChip(f, hit || (f.allowNew ? q : '')); }
+        var items = st.open === f.id ? suggestItems(f) : [], i = Math.min(st.act[f.id] || 0, Math.max(items.length - 1, 0));
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (st.open !== f.id) { openSuggest(f.id); return; }
+          if (!items.length) return;
+          st.act[f.id] = (i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length; render();
+        }
+        else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (st.open !== f.id) { openSuggest(f.id); return; }
+          if (items[i]) addChip(f, items[i].v);
+        }
         else if (e.key === 'Backspace' && !t.value && st.vals[f.id].length) { st.vals[f.id].pop(); render(); }
-        else if (e.key === 'Escape') { st.open = null; render(); }
+        else if (e.key === 'Escape') { if (st.open) { e.stopPropagation(); st.open = null; render(); } }
       }
     };
-    root.onmousedown = function (e) { var b = e.target.closest('[data-act="chip-add"],[data-act="chip-new"]'); if (b) e.preventDefault(); };
+    root.onmousedown = function (e) {
+      // клік по варіанту або по рамці поля не забирає фокус з поля вводу
+      if (e.target.closest('[data-act="chip-add"],[data-act="chip-new"]') || (e.target.closest('[data-box]') && !e.target.closest('input,[data-act]'))) e.preventDefault();
+    };
     root.onclick = function (e) {
+      var box = e.target.closest('[data-box]');
+      if (box && !e.target.closest('[data-act]')) { var bid = box.getAttribute('data-box'); if (st.open !== bid) openSuggest(bid); else document.getElementById('f-' + bid).focus(); return; }
       var t = e.target.closest('[data-act]'); if (!t || !root.contains(t)) return;
       var act = t.dataset.act, f = t.dataset.f ? byId(t.dataset.f) : null;
       if (act === 'chip-x') { st.vals[f.id].splice(+t.dataset.i, 1); render(); }
       else if (act === 'chip-add') addChip(f, t.dataset.v);
-      else if (act === 'chip-new') addChip(f, st.q[f.id]);
+      else if (act === 'chip-new') addChip(f, t.dataset.v);
       else if (act === 'photo-x') { st.vals[f.id] = null; st.photo[f.id] = { state: 'empty' }; render(); }
       else if (act === 'tool') {
         var ta = document.getElementById('f-' + f.id), s = ta.selectionStart, en = ta.selectionEnd, v = ta.value, sel = v.slice(s, en);

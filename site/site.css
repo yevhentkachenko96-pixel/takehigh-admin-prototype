@@ -609,6 +609,8 @@ footer.ft{padding-block:var(--s5) var(--s3)}
 .art-side dt{font-size:var(--t-label);line-height:var(--lh-label);letter-spacing:.08em;text-transform:uppercase;color:rgba(12,12,12,.56);font-weight:600;margin-bottom:var(--s1)}
 .art-side dd{margin:0;font-size:var(--t-small);line-height:var(--lh-small)}
 .art-side a{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+.art-side a:hover{text-decoration-thickness:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .tagrow{display:flex;flex-wrap:wrap;gap:var(--s2)}
 .tagrow a{display:inline-flex;align-items:center;height:32px;padding:0 var(--s3);border-radius:1000px;box-shadow:inset 0 0 0 1px rgba(12,12,12,.25);font-size:14px;text-decoration:none;transition:background .2s}
 .tagrow a:hover{background:rgba(12,12,12,.06)}
