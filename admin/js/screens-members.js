@@ -18,11 +18,9 @@
       onReorder: function (tab, ids) { return A.ops.reorder(tab, ids, tab); },
       note: function (tab, manual, filtered) {
         if (tab !== 'Crew') return 'Порядок на сайті — за датою створення: нові учасники зʼявляються в кінці групи.';
-        return filtered ? 'Щоб змінити порядок Crew, скиньте пошук і фільтри.' : 'Порядок як на сайті. Перетягніть рядок за ручку або натисніть на ручку і змінюйте порядок стрілками ↑↓.';
+        return 'Порядок як на сайті. Перетягніть рядок за ручку або натисніть на ручку і змінюйте порядок стрілками ↑↓.';
       },
       emptyTitle: 'У цій групі ще нікого немає', emptyText: 'Додайте учасника і оберіть групу в картці.',
-      search: { key: 'name', ph: 'Пошук за імʼям' },
-      filters: [{ key: 'status', label: 'Статус', options: ['draft', 'pub'], names: A.STATUS }],
       actions: ['edit', 'unpublish', 'delete'], entityLabel: 'учасника', entityForms: ['учасники', 'учасників'],
       cols: [
         { key: 'photo', label: 'Фото', kind: 'thumb', w: '72px', square: true },
@@ -78,8 +76,8 @@
         ] },
         { title: 'Портрет', fields: [
           { id: 'portrait', type: 'photo', label: 'Портрет', req: true, limit: 10,
-            ratio: function (vals) { return isCrew(vals) ? [4, 5] : [1, 1, 'round']; },
-            hint: function (vals) { return isCrew(vals) ? 'Crew: пропорція 4:5, мінімум 1200×1500 px' : 'Інші групи: 1:1, на сайті — кругле фото, мінімум 400×400 px'; },
+            // прев’ю кадрує фото так, як контейнер на сайті (Crew 3:4, інші — коло); без попереджень про пропорцію
+            ratio: function (vals) { return isCrew(vals) ? [3, 4] : [1, 1, 'round']; },
             value: v('portrait', null), sub: { author: v('portraitAuthor', '') } }
         ] }
       ],

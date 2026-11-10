@@ -110,7 +110,7 @@
           '<div class="upl-body"><span class="upl-name">' + esc(p.name) + '</span><span class="hint" style="font-size:12px">' + esc(p.meta || 'Фото') + '</span><div class="upl-actions">' + fileIn('Замінити') +
           '<button class="btn btn-ghost btn-sm btn-danger-text" type="button" data-act="photo-x" data-f="' + f.id + '">Видалити</button></div></div></div>';
         else h += '<div class="upl upl-err"><div class="dz-ico" style="background:#fff;color:#B42318">' + icon('err') + '</div><div class="upl-body"><span class="upl-name">' + esc(p.name) + '</span><span class="hint" style="font-size:12px">' + esc(p.meta || '') + ' · не завантажено</span>' + (p.msg ? '<span class="err" role="alert">' + icon('err', 'i-sm') + esc(p.msg) + '</span>' : '') + '</div>' + fileIn('Обрати інший файл') + '</div>';
-        var rw = rt && p.state === 'done' && p.dims ? ratioWarn(rt, p.dims) : '';
+        var rw = f.ratioWarn && rt && p.state === 'done' && p.dims ? ratioWarn(rt, p.dims) : ''; // попередження лише за явного ratioWarn
         h += '<div class="below" id="d-' + f.id + '">' + (err ? '<span class="err">' + icon('err', 'i-sm') + esc(err) + '</span>' : (rw ? '<span class="warn-txt">' + icon('warn', 'i-sm') + esc(rw) + '</span>' : (f.hint ? '<span class="hint">' + esc(typeof f.hint === 'function' ? f.hint(st.vals) : f.hint) + '</span>' : ''))) + '</div>';
         if (f.author !== false || f.caption) {
           h += '<div class="photo-sub">';
