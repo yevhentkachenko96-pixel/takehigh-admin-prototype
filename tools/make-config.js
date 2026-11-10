@@ -19,6 +19,8 @@ const cfg = {
     dataPath: env.DROPBOX_DATA_PATH || '/take-high-data.json',
     imageDir: '/img'
   },
+  // адреса скрипту Google Sheets для звернень з форм (необовʼязково)
+  sheetsUrl: env.SHEETS_WEBHOOK_URL || '',
   admin: {
     user: env.ADMIN_USER,
     passSha256: crypto.createHash('sha256').update(env.ADMIN_PASSWORD, 'utf8').digest('hex')

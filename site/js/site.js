@@ -77,6 +77,9 @@
   function pic(k, alt, extra) { var u = img(k); return u ? '<img src="' + esc(u) + '" alt="' + esc(alt || '') + '" loading="lazy"' + (extra || '') + '>' : '<span class="ph-empty" aria-hidden="true"></span>'; }
   function slugOf(n) { return n.slug || n.id; }
   function href(n) { return '#/news/' + encodeURIComponent(slugOf(n)); }
+  // партнери: на сайті лише опубліковані з дозволом на логотип, у порядку з адмінки
+  function shownPartners() { return (D.partners || []).filter(function (p) { return p.status === 'pub' && p.perm === true; }); }
+  function partnerOf(id) { if (!id) return null; return (D.partners || []).concat(D.partnersDeleted || []).find(function (p) { return p.id === id; }) || null; }
   // учасник за id, зокрема видалений (його імʼя лишається в старих новинах, але без посилання)
   function member(id) { return (D.members || []).concat(D.membersDeleted || []).find(function (x) { return x.id === id; }) || null; }
   function memberName(id) { var m = member(id); return m ? m.name : id; }
@@ -121,6 +124,11 @@
     set('hl-title', T('home', 'latestTitle', 'Updates from the team'));
     set('hl-cta', T('home', 'latestCta', 'View all updates'));
     set('hm-label', T('home', 'mediaRowLabel', 'More from Media'));
+    var hp = document.getElementById('home-partners');
+    if (hp) hp.innerHTML = shownPartners().map(function (p) {
+      var u = img(p.logo);
+      return '<a class="prow" href="' + esc(p.site || '#/partnerships') + '"' + (p.site ? ' target="_blank" rel="noopener"' : '') + '><span class="plogo">' + (u ? '<img src="' + esc(u) + '" alt="" loading="lazy">' : '') + '</span><span class="pname">' + esc(p.name) + '</span><svg class="parr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg>' + (p.site ? '<span class="sr-only"> (opens in a new tab)</span>' : '') + '</a>';
+    }).join('');
     set('crew-count', String((D.members || []).filter(function (x) { return x.group === 'Crew' && x.status === 'pub'; }).length));
     var m = document.getElementById('home-media');
     if (m) {
@@ -258,6 +266,107 @@
     if (d.close) d.close(); else d.removeAttribute('open');
   }
 
+  /* ---------- сторінка Partnerships ---------- */
+  var DIRS = ['Performance', 'Technology', 'Team', 'Media', 'Project'];
+  var CASES = { all: false };
+  // форма Partnership enquiry: значення живуть тут, щоб не губитися при оновленні даних
+  var ENQ = { v: { name: '', company: '', email: '', direction: '', message: '', consent: false, website: '' }, err: {}, state: 'idle', t0: 0 };
+  var ENQ_MAX = { name: 80, company: 100, message: 2000 };
+  function enqField(id, label, input, hint) {
+    var e = ENQ.err[id];
+    return '<div class="ef' + (e ? ' bad' : '') + '"><label for="eq-' + id + '">' + esc(label) + ' <span aria-hidden="true">*</span></label>' + input +
+      '<div class="ef-below" id="eq-' + id + '-d">' + (e ? '<span class="ef-err">' + ERRI + esc(e) + '</span>' : (hint || '')) + '</div></div>';
+  }
+  var ERRI = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.8v3.7M8 10.9h.01"/></svg>';
+  function counter(id) { var n = ENQ.v[id].length, m = ENQ_MAX[id]; return '<span class="ef-count' + (n > m ? ' over' : '') + '" id="eq-' + id + '-c">' + n + ' / ' + m + '</span>'; }
+  function enquiryForm() {
+    if (!window.THStorage) return '<div class="enq-msg"><h3>Sign-up is temporarily unavailable</h3><p><a href="https://www.instagram.com/takehighclub" target="_blank" rel="noopener">Follow the ride</a></p></div>';
+    if (ENQ.state === 'done') return '<div class="enq-msg" role="status" tabindex="-1" id="eq-done"><h3>Thank you, we’ll get back to you</h3><p>We have received your enquiry and will reply by email.</p><button class="pillbtn outline big" type="button" data-enq="again">Send another enquiry</button></div>';
+    var V = ENQ.v, a = function (id) { return ' id="eq-' + id + '" name="' + id + '" aria-describedby="eq-' + id + '-d"' + (ENQ.err[id] ? ' aria-invalid="true"' : ''); };
+    var sending = ENQ.state === 'sending';
+    var h = '<form class="enq-form" id="enq-form" novalidate>';
+    if (ENQ.state === 'error') h += '<div class="enq-alert" role="alert">' + ERRI + '<div><b>Something went wrong. Your data was not saved - please try again.</b> <button class="linkbtn" type="submit">Try again</button></div></div>';
+    h += '<div class="ef-row">' + enqField('name', 'Name', '<input type="text" autocomplete="name"' + a('name') + ' value="' + esc(V.name) + '">', counter('name')) +
+      enqField('company', 'Company', '<input type="text" autocomplete="organization"' + a('company') + ' value="' + esc(V.company) + '">', counter('company')) + '</div>';
+    h += '<div class="ef-row">' + enqField('email', 'Email', '<input type="email" autocomplete="email"' + a('email') + ' value="' + esc(V.email) + '">') +
+      enqField('direction', 'Direction', '<select' + a('direction') + '><option value="">Choose a direction</option>' + DIRS.map(function (d) { return '<option' + (V.direction === d ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select>') + '</div>';
+    h += enqField('message', 'Objective', '<textarea rows="6"' + a('message') + ' placeholder="What would you like to achieve together?">' + esc(V.message) + '</textarea>', counter('message'));
+    // поле-пастка для ботів: людям не видно, у фокус не потрапляє
+    h += '<div class="hp" aria-hidden="true"><label for="eq-website">Website</label><input type="text" id="eq-website" name="website" tabindex="-1" autocomplete="off" value="' + esc(V.website) + '"></div>';
+    h += '<div class="ef' + (ENQ.err.consent ? ' bad' : '') + '"><label class="ef-check"><input type="checkbox" id="eq-consent" name="consent" aria-describedby="eq-consent-d"' + (V.consent ? ' checked' : '') + (ENQ.err.consent ? ' aria-invalid="true"' : '') + '><span>I agree to the processing of my data as described in the [Privacy Notice].</span></label>' +
+      '<div class="ef-below" id="eq-consent-d">' + (ENQ.err.consent ? '<span class="ef-err">' + ERRI + esc(ENQ.err.consent) + '</span>' : '') + '</div></div>';
+    h += '<div><button class="pillbtn dark big" type="submit"' + (sending ? ' disabled aria-disabled="true"' : '') + '>' + (sending ? 'Sending...' : 'Send enquiry') + '</button></div></form>';
+    return h;
+  }
+  function validateEnq() {
+    var V = ENQ.v, E = {};
+    if (!V.name.trim()) E.name = 'Enter your name'; else if (V.name.length > 80) E.name = 'Use up to 80 characters';
+    if (!V.company.trim()) E.company = 'Enter your company'; else if (V.company.length > 100) E.company = 'Use up to 100 characters';
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(V.email.trim())) E.email = 'Enter a valid email address';
+    if (!V.direction) E.direction = 'Choose a direction';
+    if (!V.message.trim()) E.message = 'Tell us about your objective'; else if (V.message.length > 2000) E.message = 'Use up to 2000 characters';
+    if (!V.consent) E.consent = 'Please confirm to send your enquiry';
+    return E;
+  }
+  function submitEnq() {
+    if (ENQ.state === 'sending') return;
+    ENQ.err = validateEnq();
+    if (Object.keys(ENQ.err).length) { ENQ.state = 'idle'; route(true); var f = page.querySelector('.ef.bad input, .ef.bad select, .ef.bad textarea'); if (f) f.focus(); return; }
+    var V = ENQ.v;
+    // бот: заповнене поле-пастка або відправка швидше ніж за 3 секунди — нічого не зберігаємо
+    if (V.website || Date.now() - ENQ.t0 < 3000) { ENQ.state = 'done'; route(true); return; }
+    var now = new Date().toISOString();
+    var rec = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), type: 'partnership', created: now,
+      name: V.name.trim(), company: V.company.trim(), email: V.email.trim(), direction: V.direction, message: V.message.trim(),
+      consent: { at: now, version: 'draft-0' }, source: { page: '/partnerships', form: 'Partnership enquiry', utm: location.search.replace(/^\?/, '') }, status: 'New' };
+    ENQ.state = 'sending'; route(true);
+    THStorage.saveEnquiry(rec).then(function () {
+      // копія в Google-таблицю (і лист TAKE HIGH) — через скрипт Google; відповідь Google сайт прочитати не може
+      var url = (window.TH_CONFIG || {}).sheetsUrl;
+      if (url) { try { fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(rec) }).catch(function () {}); } catch (e) {} }
+      ENQ.state = 'done'; ENQ.v = { name: '', company: '', email: '', direction: '', message: '', consent: false, website: '' }; route(true);
+      var d = document.getElementById('eq-done'); if (d) d.focus();
+    }, function (e) {
+      console.warn('[TAKE HIGH] звернення не збережено:', e && e.message, e && e.detail);
+      ENQ.state = 'error'; route(true); var al = page.querySelector('.enq-alert'); if (al) al.scrollIntoView({ block: 'center' });
+    });
+  }
+  function renderPartnerships() {
+    var P = (D.pages || {}).partnerships || {};
+    if (!ENQ.t0) ENQ.t0 = Date.now();
+    var h = '<section class="page-head"><div class="wrap"><nav class="crumbs" aria-label="Breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">/</span><span>Partnerships</span></nav>' +
+      '<span class="label">Partnerships</span><h1 class="story-title">' + esc(T('partnerships', 'title', 'Partners who strengthen the team')) + '</h1>' +
+      (P.intro ? '<div class="pi-intro">' + paras(P.intro) + '</div>' : '') +
+      '<a class="pillbtn light big" href="#/partnerships/enquiry">Discuss a partnership ' + ARR + '</a></div></section>';
+    var dirs = (P.dirs || []).filter(function (d) { return String(d.text || '').trim(); });
+    if (dirs.length) h += '<section class="ps-sec"><div class="wrap"><div class="sec-head"><span class="label">Directions</span><h2 class="story-title">Partnership areas</h2></div><div class="dir-grid">' +
+      dirs.map(function (d) { return '<div class="dir-card"><h3>' + esc(d._label) + '</h3><p>' + esc(d.text) + '</p></div>'; }).join('') + '</div></div></section>';
+    var steps = (P.steps || []).filter(function (s) { return String(s.title || '').trim(); });
+    if (steps.length) h += '<section class="ps-sec"><div class="wrap"><div class="sec-head"><span class="label">Approach</span><h2 class="story-title">How we build a partnership</h2></div><ol class="steps">' +
+      steps.map(function (s, i) { return '<li><span class="snum">' + (i < 9 ? '0' : '') + (i + 1) + '</span><h3>' + esc(s.title) + '</h3><p>' + esc(s.text || '') + '</p></li>'; }).join('') + '</ol></div></section>';
+    var PL = shownPartners();
+    if (PL.length) h += '<section class="ps-sec" id="partners-list"><div class="wrap"><div class="sec-head"><span class="label">Partners</span><h2 class="story-title">Who works with the team</h2></div><div class="pt-grid">' +
+      PL.map(function (p) {
+        var u = img(p.logo), logo = '<span class="pt-logo">' + (u ? '<img src="' + esc(u) + '" alt="' + esc(p.name) + ' logo">' : '') + '</span>';
+        return '<article class="pt-card" id="p-' + esc(p.id) + '">' + (p.site ? '<a class="pt-logo-link" href="' + esc(p.site) + '" target="_blank" rel="noopener" aria-label="' + esc(p.name) + ' (opens in a new tab)">' + logo + '</a>' : logo) +
+          '<h3>' + esc(p.name) + '</h3>' + (p.role ? '<p>' + esc(p.role) + '</p>' : '') + '</article>';
+      }).join('') + '</div></div></section>';
+    var CL = (D.cases || []).filter(function (c) { return c.status === 'pub'; });
+    if (CL.length) {
+      var showN = CASES.all ? CL.length : 3;
+      h += '<section class="ps-sec" id="cases"><div class="wrap"><div class="sec-head"><span class="label">Cases</span><h2 class="story-title">Partnerships in action</h2></div><div class="case-grid">' +
+        CL.slice(0, showN).map(function (c) {
+          var u = img(c.img), pp = partnerOf(c.partner);
+          return '<article class="case-card"><div class="ph">' + (u ? '<img src="' + esc(u) + '" alt="" loading="lazy">' : '<span class="ph-empty"></span>') + (c.imgAuthor ? '<span class="mcredit">Photo: ' + esc(c.imgAuthor) + '</span>' : '') + '</div>' +
+            '<span class="meta">' + esc([c.dir, pp && pp.name].filter(Boolean).join(' · ')) + '</span><h3>' + esc(c.title) + '</h3>' + (c.text ? '<p>' + esc(c.text) + '</p>' : '') + '</article>';
+        }).join('') + '</div>' + (CL.length > showN ? '<div class="more-row"><button class="pillbtn outline big" type="button" data-cases-more>Show more</button></div>' : '') + '</div></section>';
+    }
+    var NL = published().filter(function (n) { return n.section === 'Partnerships'; }).slice(0, 3);
+    if (NL.length) h += '<section class="ps-sec"><div class="wrap"><div class="latest-head"><div><span class="label">Latest</span><h2 class="story-title">News from Partnerships</h2></div><a class="pillbtn dark" href="#/news?section=Partnerships">All updates ' + ARR + '</a></div><div class="ngrid">' + NL.map(ncard).join('') + '</div></div></section>';
+    h += '<section class="ps-sec enq-sec" id="enquiry"><div class="wrap enq-wrap"><div class="sec-head"><span class="label">Contact</span><h2 class="story-title">Partnership enquiry</h2><p class="enq-lead">Tell us about your company and what you would like to achieve. We reply by email.</p></div>' + enquiryForm() + '</div></section>';
+    return { html: h, title: 'Partnerships · TAKE HIGH' };
+  }
+
   function renderNews(slug) {
     var all = published();
     var n = all.find(function (x) { return slugOf(x) === slug || x.id === slug; });
@@ -275,7 +384,7 @@
       (n.type ? '<div><dt>Type</dt><dd>' + esc(n.type) + '</dd></div>' : '') +
       locationRow(n) +
       (people.length ? '<div><dt>People</dt><dd>' + people.map(function (p, i) { var l = i < (n.people || []).length ? memberLink(n.people[i]) : null; return l ? '<a href="' + l + '">' + esc(p) + '</a>' : esc(p); }).join(', ') + '</dd></div>' : '') +
-      (n.partner ? '<div><dt>Partner</dt><dd>' + esc(n.partner) + '</dd></div>' : '') +
+      (partnerOf(n.partner) ? '<div><dt>Partner</dt><dd>' + esc(partnerOf(n.partner).name) + '</dd></div>' : '') +
       '</dl>' + ((n.tags || []).length ? '<div class="tagrow" aria-label="Tags">' + n.tags.map(function (t) { return '<a href="#/news?tag=' + encodeURIComponent(t) + '">#' + esc(t) + '</a>'; }).join('') + '</div>' : '') +
       '</aside><div class="prose">' + (n.imgCaption ? '<p class="meta" style="margin-top:0">' + esc(n.imgCaption) + '</p>' : '') +
       (n.body && n.body.trim() ? prose(n.body) : '<p class="lead" style="color:rgba(12,12,12,.45)">[Article text]</p>') + '</div></div></section>';
@@ -296,7 +405,7 @@
     var q = {}; qs.split('&').forEach(function (p) { if (!p) return; var kv = p.split('='); try { q[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || ''); } catch (e) {} });
     var parts = path.split('/').map(function (x) { try { return decodeURIComponent(x); } catch (e) { return x; } });
     // старі якорі з макета (#latest, #club…) теж працюють
-    if (parts.length === 1 && parts[0] && ['latest', 'news', 'club'].indexOf(parts[0]) < 0 && document.getElementById(parts[0]) && home.contains(document.getElementById(parts[0]))) parts = ['home', parts[0]];
+    if (parts.length === 1 && parts[0] && ['latest', 'news', 'club', 'partnerships'].indexOf(parts[0]) < 0 && document.getElementById(parts[0]) && home.contains(document.getElementById(parts[0]))) parts = ['home', parts[0]];
     return { parts: parts, q: q };
   }
   var lastKey = null;
@@ -306,14 +415,19 @@
     if (p[0] === 'news' && p[1]) view = renderNews(p[1]);
     else if (p[0] === 'news') view = renderLatest(r.q);
     else if (p[0] === 'club') view = renderClub();
+    else if (p[0] === 'partnerships') view = renderPartnerships();
     if (view) {
+      var ae = document.activeElement, fid = ae && page.contains(ae) && ae.id ? ae.id : null, ss = null, se = null;
+      try { if (fid && ae.selectionStart != null) { ss = ae.selectionStart; se = ae.selectionEnd; } } catch (x) {}
       page.innerHTML = view.html; page.hidden = false; home.hidden = true; document.title = view.title;
+      if (fid && keepScroll) { var fe = document.getElementById(fid); if (fe) { fe.focus({ preventScroll: true }); try { if (ss != null) fe.setSelectionRange(ss, se); } catch (x) {} } }
     } else {
       page.hidden = true; page.innerHTML = ''; home.hidden = false; document.title = 'TAKE HIGH';
     }
     var key = p.join('/') + JSON.stringify(r.q);
     if (keepScroll && key === lastKey) return;
     lastKey = key;
+    if (p[0] === 'partnerships' && p[1]) { var sec2 = document.getElementById(p[1]); if (sec2) { window.scrollTo({ top: sec2.getBoundingClientRect().top + window.scrollY - 72, behavior: 'instant' }); var f1 = sec2.querySelector('input,select,textarea'); if (f1 && p[1] === 'enquiry') f1.focus({ preventScroll: true }); return; } }
     if (p[0] === 'club' && p[1]) {
       var mc = document.getElementById('m-' + p[1]);
       if (mc) { mc.scrollIntoView({ block: 'center', behavior: 'instant' }); mc.classList.add('flash'); setTimeout(function () { mc.classList.remove('flash'); }, 1800); return; }
@@ -322,7 +436,25 @@
     window.scrollTo(0, 0);
   }
   window.addEventListener('hashchange', function () { route(false); });
+  // форма: значення в ENQ, перевірка поля — коли з нього виходять
+  page.addEventListener('input', function (e) {
+    var t = e.target; if (!t.form || t.form.id !== 'enq-form') return;
+    ENQ.v[t.name] = t.type === 'checkbox' ? t.checked : t.value;
+    var c = document.getElementById('eq-' + t.name + '-c'); if (c) { c.textContent = t.value.length + ' / ' + ENQ_MAX[t.name]; c.classList.toggle('over', t.value.length > ENQ_MAX[t.name]); }
+  });
+  page.addEventListener('change', function (e) {
+    var t = e.target; if (!t.form || t.form.id !== 'enq-form') return;
+    ENQ.v[t.name] = t.type === 'checkbox' ? t.checked : t.value;
+    if (ENQ.err[t.name]) { var E = validateEnq(); if (E[t.name]) ENQ.err[t.name] = E[t.name]; else delete ENQ.err[t.name]; setTimeout(function () { route(true); }, 0); }
+  });
+  page.addEventListener('submit', function (e) { if (e.target.id === 'enq-form') { e.preventDefault(); submitEnq(); } });
   page.addEventListener('click', function (e) {
+    if (e.target.closest('[data-cases-more]')) {
+      var before = page.querySelectorAll('.case-card').length; CASES.all = true; route(true);
+      var nx = page.querySelectorAll('.case-card')[before]; if (nx) { nx.setAttribute('tabindex', '-1'); nx.focus({ preventScroll: true }); }
+      return;
+    }
+    if (e.target.closest('[data-enq="again"]')) { ENQ.state = 'idle'; ENQ.err = {}; ENQ.t0 = Date.now(); route(true); var n0 = document.getElementById('eq-name'); if (n0) n0.focus(); return; }
     var rm = e.target.closest('[data-member]'); if (rm) { openMember(rm.getAttribute('data-member')); return; }
     if (e.target.closest('[data-close]') || e.target.id === 'mdlg') { closeMember(); return; }
     if (!e.target.closest('[data-more]')) return;

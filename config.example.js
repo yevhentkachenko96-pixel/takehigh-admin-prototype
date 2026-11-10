@@ -10,6 +10,8 @@ window.TH_CONFIG = {
     dataPath: '/take-high-data.json',
     imageDir: '/img'
   },
+  // адреса веб-застосунку Google Apps Script для звернень (docs/forms-setup.md); порожньо — без таблиці
+  sheetsUrl: '',
   admin: {
     user: 'admin',
     // SHA-256 від пароля. Отримати: echo -n 'ваш-пароль' | sha256sum

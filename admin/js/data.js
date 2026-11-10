@@ -61,7 +61,7 @@
       return A.commit(function (D) {
         var L = D[entity]; var r = L.find(function (x) { return x.id === id; }); var created = false;
         // нові учасники — в кінець (порядок створення), інші записи — нагору списку
-        if (!r) { r = { id: id }; if (entity === 'members') L.push(r); else L.unshift(r); created = true; }
+        if (!r) { r = { id: id }; if (['members', 'partners', 'cases'].indexOf(entity) >= 0) L.push(r); else L.unshift(r); created = true; }
         var old = clone(r);
         Object.keys(rec).forEach(function (k) { r[k] = rec[k]; });
         if (status) r.status = status;
@@ -140,14 +140,16 @@
       });
     },
     // ручний порядок учасників однієї групи: ids — новий порядок; інші групи лишаються на своїх місцях
-    reorder: function (group, ids, label) {
+    // entity — members (за групою), partners або cases (увесь список); group = null для всього списку
+    reorder: function (group, ids, label, entity) {
+      entity = entity || 'members';
       return A.commit(function (D) {
-        var slots = [], rec = {};
-        D.members.forEach(function (m, i) { if (m.group === group) { slots.push(i); rec[m.id] = m; } });
+        var slots = [], rec = {}, L = D[entity];
+        L.forEach(function (m, i) { if (group == null || m.group === group) { slots.push(i); rec[m.id] = m; } });
         if (ids.length !== slots.length) return false;
-        var same = ids.every(function (id, k) { return D.members[slots[k]].id === id; }); if (same) return false;
-        ids.forEach(function (id, k) { D.members[slots[k]] = rec[id]; });
-        log(D, label || group, SEC.members, 'Змінено порядок');
+        var same = ids.every(function (id, k) { return L[slots[k]].id === id; }); if (same) return false;
+        ids.forEach(function (id, k) { L[slots[k]] = rec[id]; });
+        log(D, label || group || SEC[entity], SEC[entity], 'Змінено порядок');
         return true;
       });
     },
@@ -164,6 +166,28 @@
           return false;
         });
         return n ? n : false;
+      });
+    },
+    // партнери: як учасники — назва лишається в старих новинах і кейсах, вибрати в нових не можна
+    partnerDelete: function (ids) {
+      return A.commit(function (D) {
+        D.partnersDeleted = D.partnersDeleted || []; var n = 0;
+        D.partners = D.partners.filter(function (p) {
+          if (ids.indexOf(p.id) < 0) return true;
+          var used = D.news.filter(function (x) { return x.partner === p.id; }).length + D.cases.filter(function (x) { return x.partner === p.id; }).length;
+          D.partnersDeleted.push(Object.assign({}, p, { deleted: A.now() }));
+          log(D, p.name, SEC.partners, 'Видалено', A.STATUS[p.status] || '', used ? 'лишився в новинах і кейсах: ' + used : ''); n++;
+          return false;
+        });
+        return n ? n : false;
+      });
+    },
+    partnerRestore: function (id) {
+      return A.commit(function (D) {
+        var L = D.partnersDeleted || [], p = L.find(function (x) { return x.id === id; }); if (!p) return false;
+        D.partnersDeleted = L.filter(function (x) { return x !== p; });
+        delete p.deleted; p.status = 'draft'; p.changed = A.now(); D.partners.push(p);
+        log(D, p.name, SEC.partners, 'Відновлено', '', A.STATUS.draft); return p.id;
       });
     },
     memberRestore: function (id) {
@@ -266,6 +290,9 @@
     if (!lowerOk(D0.tags) || (D0.news || []).some(function (n) { return !lowerOk(n.tags); })) need = true;
     Object.keys(D0).forEach(function (k) { if (Array.isArray(D0[k]) && D0[k].some(function (r) { return r && r.status === 'arch'; })) need = true; });
     if ((D0.news || []).some(function (n) { return n.point && !A.isPoint(n.point); })) need = true;
+    var P0 = D0.partners || [], isPid = function (v) { return !v || P0.concat(D0.partnersDeleted || []).some(function (p) { return p.id === v; }); };
+    if (P0.some(function (p) { return (p.status === 'pub' && p.perm !== true) || !String(p.role || '').trim(); })) need = true;
+    if ((D0.news || []).concat(D0.cases || []).some(function (x) { return !isPid(x.partner); })) need = true;
     if (!need) return Promise.resolve(0);
     return A.commit(function (D) {
       var n = 0;
@@ -279,6 +306,19 @@
       Object.keys(D).forEach(function (k) {
         if (!Array.isArray(D[k]) || k === 'log' || k === 'tags') return;
         D[k].forEach(function (r) { if (r && r.status === 'arch') { r.status = 'draft'; r.changed = A.now(); log(D, nameOf(r), SEC[k] || k, 'Архів скасовано: переведено в чернетку', A.STATUS.arch, A.STATUS.draft); n++; } });
+      });
+      // 4. партнери: дозвіл на логотип для вже опублікованих (вони є на нинішньому сайті), заглушка ролі
+      (D.partners || []).forEach(function (p) {
+        if (p.status === 'pub' && p.perm !== true) { p.perm = true; log(D, p.name, SEC.partners, 'Позначено дозвіл на логотип (партнер уже на сайті)', 'Ні', 'Так'); n++; }
+        else if (p.perm !== true) p.perm = false;
+        if (!String(p.role || '').trim()) { p.role = '[Partner role]'; n++; }
+      });
+      // 5. партнер у новинах і кейсах — посилання на картку партнера, а не текст
+      var allP = (D.partners || []).concat(D.partnersDeleted || []);
+      (D.news || []).concat(D.cases || []).forEach(function (x) {
+        if (!x.partner || allP.some(function (p) { return p.id === x.partner; })) return;
+        var hit = allP.find(function (p) { return p.name.toLowerCase() === String(x.partner).trim().toLowerCase(); });
+        x.partner = hit ? hit.id : ''; n++;
       });
       // 3. старі точки «на малюнку» не є координатами
       (D.news || []).forEach(function (x) { if (x.point && !A.isPoint(x.point)) { x.point = null; log(D, nameOf(x), SEC.news, 'Скинуто точку на карті (нова карта)'); n++; } });

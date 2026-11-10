@@ -433,3 +433,18 @@ tr.is-dragging{opacity:.45}
   .move-btns .icon-btn{flex:1;border:1px solid var(--border-strong);border-radius:var(--r-sm);font-size:18px}
   .move-btns .icon-btn:disabled{opacity:.35}
 }
+/* чекбокс, повторювані блоки, перегляд звернення */
+.check-row{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:14px;line-height:20px}
+.check-row .chk{margin-top:0}
+.rep{display:flex;flex-direction:column;gap:12px}
+.rep-item{display:flex;flex-direction:column;gap:10px;border:1px solid var(--border-strong);border-radius:var(--r);padding:12px;background:#fff}
+.rep-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rep-num{font-weight:600;color:var(--muted)}
+.rep-tools{display:flex;gap:4px;align-items:center}
+.rep-tools .icon-btn:disabled{opacity:.35}
+.kv-list{margin:0;display:grid;gap:10px}
+.kv{display:grid;grid-template-columns:200px 1fr;gap:12px}
+.kv dt{color:var(--muted);font-size:13px}
+.kv dd{margin:0}
+.enq-text{white-space:pre-wrap;margin:0;line-height:1.55}
+@media (max-width:760px){.kv{grid-template-columns:1fr;gap:2px}}

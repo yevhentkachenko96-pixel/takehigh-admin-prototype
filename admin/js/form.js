@@ -30,6 +30,7 @@
     function isEmpty(f) {
       var x = val(f);
       if (f.type === 'photo') return !x;
+      if (f.type === 'check') return x !== true;
       if (Array.isArray(x)) return x.length === 0;
       return x == null || String(x).trim() === '';
     }
@@ -51,6 +52,13 @@
         if (f.inputType === 'url' && x && !/^https?:\/\/\S+\.\S+/.test(x)) { E[f.id] = 'Неправильне посилання. Приклад: https://…'; return; }
         if (f.inputType === 'email' && x && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)) { E[f.id] = 'Неправильний формат email'; return; }
         if (f.type === 'multi' && f.maxItems && x.length > f.maxItems) { E[f.id] = 'Не більше ' + f.maxItems; return; }
+        if (f.type === 'rep') {
+          var bad = [];
+          x.forEach(function (it, i) { f.fields.forEach(function (sf) { var t = String(it[sf.id] || ''); if ((sf.req && !t.trim()) || (sf.max && t.length > sf.max)) bad.push(i + 1); }); });
+          if (bad.length) { E[f.id] = 'Перевірте ' + (f.itemName || 'пункти') + ': ' + bad.filter(function (v, i, a) { return a.indexOf(v) === i; }).join(', ') + ' — заповніть поля і не перевищуйте ліміт символів'; return; }
+          if (f.min && x.length < f.min) { E[f.id] = 'Потрібно щонайменше ' + f.min; return; }
+        }
+        if (f.hardReq && mode === 'publish' && isEmpty(f)) { E[f.id] = f.hardMsg || 'Обовʼязкове поле'; return; }
         if (mode !== 'publish') return;
         if (isReq(f) && isEmpty(f)) { if (cfg.softReq) W[f.id] = 1; else E[f.id] = 'Обовʼязкове поле'; }
       });
@@ -81,7 +89,24 @@
         h += '<input class="input" id="' + dom + '" type="date" value="' + esc(x) + '"' + inv + desc + ' data-f="' + f.id + '" style="max-width:240px">';
       } else if (f.type === 'select') {
         h += '<select class="select" id="' + dom + '"' + inv + desc + ' data-f="' + f.id + '"><option value="">' + esc(f.selPh || 'Оберіть…') + '</option>' +
-          (f.options || []).map(function (o) { return '<option value="' + esc(o) + '"' + (o === x ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+          ((x && (f.options || []).indexOf(x) < 0 ? [x] : []).concat(f.options || [])).map(function (o) { return '<option value="' + esc(o) + '"' + (o === x ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+      } else if (f.type === 'check') {
+        h += '<label class="check-row"><input type="checkbox" class="chk" id="' + dom + '" data-f="' + f.id + '" data-check="1"' + (x === true ? ' checked' : '') + inv + desc + '><span>' + esc(f.text || '') + '</span></label>';
+      } else if (f.type === 'rep') {
+        h += '<div class="rep" id="' + dom + '" role="group" aria-labelledby="l-' + f.id + '">' + x.map(function (it, i) {
+          return '<div class="rep-item"><div class="rep-head"><span class="rep-num">' + (i < 9 ? '0' : '') + (i + 1) + '</span><span class="rep-tools">' +
+            '<button class="icon-btn" type="button" data-act="rep-up" data-f="' + f.id + '" data-i="' + i + '" aria-label="Вище: ' + (f.itemName1 || 'пункт') + ' ' + (i + 1) + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+            '<button class="icon-btn" type="button" data-act="rep-down" data-f="' + f.id + '" data-i="' + i + '" aria-label="Нижче: ' + (f.itemName1 || 'пункт') + ' ' + (i + 1) + '"' + (i === x.length - 1 ? ' disabled' : '') + '>↓</button>' +
+            '<button class="btn btn-ghost btn-sm btn-danger-text" type="button" data-act="rep-x" data-f="' + f.id + '" data-i="' + i + '"' + (f.min && x.length <= f.min ? ' disabled title="Мінімум ' + f.min + '"' : '') + '>Видалити</button></span></div>' +
+            f.fields.map(function (sf) {
+              var sid = 'r-' + f.id + '-' + i + '-' + sf.id, sv = String(it[sf.id] || '');
+              var inp = sf.type === 'textarea' ? '<textarea class="textarea" rows="2" id="' + sid + '" data-rep="' + f.id + '" data-i="' + i + '" data-sf="' + sf.id + '">' + esc(sv) + '</textarea>'
+                : '<input class="input" id="' + sid + '" data-rep="' + f.id + '" data-i="' + i + '" data-sf="' + sf.id + '" value="' + esc(sv) + '">';
+              return '<div class="field"><label class="label" for="' + sid + '" style="font-size:13px">' + esc(sf.label) + (sf.req ? '<span class="req" aria-hidden="true">*</span>' : '') + '</label>' + inp +
+                '<div class="below"><span class="counter' + (sf.max && sv.length > sf.max ? ' over' : '') + '" id="cn-' + sid + '">' + sv.length + ' / ' + sf.max + '</span></div></div>';
+            }).join('') + '</div>';
+        }).join('') + '<div><button class="btn btn-secondary btn-sm" type="button" data-act="rep-add" data-f="' + f.id + '"' + (f.max && x.length >= f.max ? ' disabled' : '') + '>' + icon('plus', 'i-sm') + esc(f.addText || 'Додати') + '</button>' +
+          (f.max ? ' <span class="hint" style="font-size:13px">' + x.length + ' з ' + (f.min ? f.min + '–' : '') + f.max + '</span>' : '') + '</div></div>';
       } else if (f.type === 'multi') {
         var q = st.q[f.id] || '', atMax = f.maxItems && x.length >= f.maxItems, open = st.open === f.id && !atMax;
         var items = open ? suggestItems(f) : [], act = Math.min(st.act[f.id] || 0, Math.max(items.length - 1, 0));
@@ -103,7 +128,7 @@
       } else if (f.type === 'photo') {
         var p = st.photo[f.id], acc = f.accept || 'image/jpeg,image/png,image/webp', fmt = f.fmt || 'JPG, PNG або WebP · до ' + (f.limit || 10) + ' МБ';
         var fileIn = function (lab, c) { return '<label class="btn btn-secondary btn-sm' + (c || '') + '">' + lab + '<input class="sr-only" id="' + dom + '" type="file" accept="' + acc + '" data-file="' + f.id + '"></label>'; };
-        var rt = f.ratio ? f.ratio(st.vals) : null, pst = rt ? ' style="width:' + (rt[2] ? 96 : Math.round(120 * Math.min(1, rt[0] / rt[1]))) + 'px;height:' + (rt[2] ? 96 : Math.round(120 * Math.min(1, rt[1] / rt[0]))) + 'px' + (rt[2] ? ';border-radius:50%' : '') + '"' : '';
+        var rt = f.ratio ? f.ratio(st.vals) : null, pst = f.logo ? ' style="object-fit:contain;background:#ECEAE0;padding:8px"' : rt ? ' style="width:' + (rt[2] ? 96 : Math.round(120 * Math.min(1, rt[0] / rt[1]))) + 'px;height:' + (rt[2] ? 96 : Math.round(120 * Math.min(1, rt[1] / rt[0]))) + 'px' + (rt[2] ? ';border-radius:50%' : '') + '"' : '';
         if (p.state === 'empty') h += '<div class="dz" data-drop="' + f.id + '"><div class="dz-ico">' + icon('up') + '</div><span class="dz-title">Перетягніть файл сюди</span><span class="hint" style="font-size:13px">' + esc(fmt) + '</span>' + fileIn('Обрати файл', ' dz-file') + '</div>';
         else if (p.state === 'up') h += '<div class="upl" aria-live="polite"><span class="thumb t2 upl-prev" aria-hidden="true"></span><div class="upl-body"><span class="upl-name">' + esc(p.name) + '</span><div class="bar" role="progressbar" aria-label="Завантаження файлу"><span style="width:60%"></span></div><span class="hint" style="font-size:12px">Завантаження…</span></div></div>';
         else if (p.state === 'done') h += '<div class="upl">' + (p.url ? '<img class="upl-prev" src="' + esc(p.url) + '" alt="Прев’ю: ' + esc(p.name) + '"' + pst + ' data-ratio-f="' + f.id + '">' : '<span class="thumb t3 upl-prev" role="img" aria-label="Прев’ю фото"></span>') +
@@ -341,11 +366,16 @@
       } else if (t.dataset.sub) {
         st.vals[t.dataset.sub] = t.value; var m = +t.dataset.max, c2 = document.getElementById('cn-' + t.dataset.sub);
         if (c2) { c2.textContent = t.value.length + ' / ' + m; c2.classList.toggle('over', t.value.length > m); }
+      } else if (t.dataset.rep) {
+        var rf = byId(t.dataset.rep), it = st.vals[rf.id][+t.dataset.i]; it[t.dataset.sf] = t.value;
+        var sfd = rf.fields.find(function (z) { return z.id === t.dataset.sf; }), cnr = document.getElementById('cn-' + t.id);
+        if (cnr && sfd.max) { cnr.textContent = t.value.length + ' / ' + sfd.max; cnr.classList.toggle('over', t.value.length > sfd.max); }
       } else if (t.dataset.multi) { st.q[t.dataset.multi] = t.value; st.open = t.dataset.multi; st.act[t.dataset.multi] = 0; render(); }
     };
     root.onchange = function (e) {
       var t = e.target;
       if (t.dataset.file) { var f = byId(t.dataset.file); if (t.files && t.files[0]) setPhotoFile(f, t.files[0]); return; }
+      if (t.dataset.check) { st.vals[t.dataset.f] = t.checked; if (st.tried) render(); return; }
       if (t.dataset.f && (t.tagName === 'SELECT' || t.type === 'date')) { st.vals[t.dataset.f] = t.value; if (st.tried || hasCond) render(); return; }
       // після переходу фокусу в інше поле: перемальовуємо, коли фокус уже там, щоб його не загубити
       if (st.tried && (t.dataset.f || t.dataset.sub)) setTimeout(render, 0);
@@ -403,6 +433,12 @@
         var w = { h2: ['\n## ', ''], b: ['**', '**'], i: ['_', '_'], ul: ['\n- ', ''], link: ['[', '](https://)'], quote: ['\n> ', ''] }[t.dataset.tool];
         ta.value = v.slice(0, s) + w[0] + (sel || '') + w[1] + v.slice(en); st.vals[f.id] = ta.value; ta.focus();
         var pos = s + w[0].length + sel.length; ta.setSelectionRange(pos, pos);
+      }
+      else if (act === 'rep-add') { var na = {}; f.fields.forEach(function (sf) { na[sf.id] = ''; }); st.vals[f.id].push(na); render(); var nf = document.getElementById('r-' + f.id + '-' + (st.vals[f.id].length - 1) + '-' + f.fields[0].id); if (nf) nf.focus(); }
+      else if (act === 'rep-x') { st.vals[f.id].splice(+t.dataset.i, 1); render(); }
+      else if (act === 'rep-up' || act === 'rep-down') {
+        var ri = +t.dataset.i, rj = ri + (act === 'rep-up' ? -1 : 1), arr = st.vals[f.id], tmp = arr[ri]; arr[ri] = arr[rj]; arr[rj] = tmp; render();
+        var fb = root.querySelector('[data-act="' + act + '"][data-f="' + f.id + '"][data-i="' + rj + '"]'); if (fb && !fb.disabled) fb.focus(); else { fb = root.querySelector('[data-f="' + f.id + '"][data-i="' + rj + '"]'); if (fb) fb.focus(); }
       }
       else if (act === 'err-action') { var ea2 = st.errAct && st.errAct[f.id]; if (ea2) ea2.run(); }
       else if (act === 'draft') submit('draft');

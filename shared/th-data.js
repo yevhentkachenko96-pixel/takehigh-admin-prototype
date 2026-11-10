@@ -69,15 +69,15 @@
     ],
 
     partners: [
-      { id: 'p1', name: 'Zodiak', site: 'https://zoddiak.com', logo: 'logo_zodiak', dir: '', role: '', perm: '', status: 'draft', changed: '04.11.2026 10:00' },
-      { id: 'p2', name: 'Wave Crushers', site: 'https://wcts.pt', logo: 'logo_wave_crushers', dir: '', role: '', perm: '', status: 'pub', changed: '04.11.2026 10:02' },
-      { id: 'p3', name: 'West Tech Jet Ski', site: 'https://www.instagram.com/westtechjetski', logo: 'logo_west_tech_jet_ski', dir: '', role: '', perm: '', status: 'pub', changed: '04.11.2026 10:04' },
-      { id: 'p4', name: 'Ocean Spirit Surf', site: 'https://www.instagram.com/oceanspiritsurf', logo: 'logo_ocean_spirit_surf', dir: '', role: '', perm: '', status: 'pub', changed: '04.11.2026 10:06' },
-      { id: 'p5', name: 'Red Herrings Nazaré', site: 'https://redherringsnazare.com', logo: 'logo_red_herrings_nazar', dir: '', role: '', perm: '', status: 'pub', changed: '04.11.2026 10:08' },
-      { id: 'p6', name: 'Barmaleys Studio', site: 'https://barmaleys.studio', logo: 'logo_barmaleys_studio', dir: '', role: '', perm: '', status: 'pub', changed: '04.11.2026 10:10' }
+      { id: 'p1', name: 'Zodiak', site: 'https://zoddiak.com', logo: 'logo_zodiak', dir: '', role: '[Partner role]', perm: false, status: 'draft', changed: '04.11.2026 10:00' },
+      { id: 'p2', name: 'Wave Crushers', site: 'https://wcts.pt', logo: 'logo_wave_crushers', dir: '', role: '[Partner role]', perm: true, status: 'pub', changed: '04.11.2026 10:02' },
+      { id: 'p3', name: 'West Tech Jet Ski', site: 'https://www.instagram.com/westtechjetski', logo: 'logo_west_tech_jet_ski', dir: '', role: '[Partner role]', perm: true, status: 'pub', changed: '04.11.2026 10:04' },
+      { id: 'p4', name: 'Ocean Spirit Surf', site: 'https://www.instagram.com/oceanspiritsurf', logo: 'logo_ocean_spirit_surf', dir: '', role: '[Partner role]', perm: true, status: 'pub', changed: '04.11.2026 10:06' },
+      { id: 'p5', name: 'Red Herrings Nazaré', site: 'https://redherringsnazare.com', logo: 'logo_red_herrings_nazar', dir: '', role: '[Partner role]', perm: true, status: 'pub', changed: '04.11.2026 10:08' },
+      { id: 'p6', name: 'Barmaleys Studio', site: 'https://barmaleys.studio', logo: 'logo_barmaleys_studio', dir: '', role: '[Partner role]', perm: true, status: 'pub', changed: '04.11.2026 10:10' }
     ],
     cases: [
-      { id: 'c1', title: '[Partner role in the sporting story]', partner: '[Partner]', dir: 'Technology', img: null, text: '[What was done, what rights, how the result was measured]', status: 'pub', changed: '28.10.2026 15:00' }
+      { id: 'c1', title: '[Partner role in the sporting story]', partner: '', dir: 'Technology', img: null, text: '[What was done, what rights, how the result was measured]', status: 'pub', changed: '28.10.2026 15:00' }
     ],
 
     products: [

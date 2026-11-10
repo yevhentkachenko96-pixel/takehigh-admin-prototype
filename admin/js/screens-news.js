@@ -68,7 +68,7 @@
           { id: 'date', type: 'date', label: 'Дата', req: true, half: true, value: v('date', '') },
           { id: 'section', type: 'select', label: 'Розділ', req: true, half: true, options: SECTIONS, value: v('section', '') },
           { id: 'type', type: 'select', label: 'Тип', req: true, half: true, options: TYPES, value: v('type', '') },
-          { id: 'partner', type: 'select', label: 'Партнер', half: true, selPh: 'Без партнера', options: D.partners.filter(function (p) { return p.status === 'pub'; }).map(function (p) { return p.name; }), hint: 'Лише опубліковані партнери', value: v('partner', '') }
+          { id: 'partner', type: 'select', label: 'Партнер', half: true, selPh: 'Без партнера', options: D.partners.filter(function (p) { return p.status === 'pub'; }).map(function (p) { return p.name; }), hint: 'Лише опубліковані партнери', value: (A.partnerById(v('partner', '')) || {}).name || '' }
         ] },
         { title: 'Теги і люди', fields: [
           { id: 'tags', type: 'multi', label: 'Теги', lower: true, options: D.tags.slice(), blocked: (D.tagsDeleted || []).slice(), blockedText: function (t) { return 'Тег «' + t + '» видалено, додати не можна. Відновити — у розділі Теги'; }, allowNew: true, itemMax: 30, newText: 'Створити тег', ph: 'Почніть вводити або створіть новий тег', hint: 'Теги завжди малими літерами, на сайті: #nazaré. Новий тег додається в довідник', value: v('tags', []).slice() },
@@ -90,7 +90,7 @@
         ] }
       ],
       onSave: function (val, status) {
-        var rec = { title: val.title, slug: val.slug || A.slugify(val.title), deck: val.deck, date: val.date, section: val.section, type: val.type, partner: val.partner,
+        var rec = { title: val.title, slug: val.slug || A.slugify(val.title), deck: val.deck, date: val.date, section: val.section, type: val.type, partner: (D.partners.concat(D.partnersDeleted || []).find(function (p) { return p.name === val.partner; }) || {}).id || '',
           tags: val.tags, people: val.people.map(memberId), others: val.others, place: val.place, point: val.point,
           img: val.img, imgAuthor: val.img_author, imgCaption: val.img_caption, body: val.body, source: val.source };
         return A.ops.save('news', id, rec, status, val.title);

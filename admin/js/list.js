@@ -230,12 +230,16 @@
       if (!cfg.onPatch) return;
       var R = rows().filter(function (r) { return ids.indexOf(r.id) >= 0; });
       var ch = R.filter(function (r) { return status === 'draft' ? r.status === 'pub' : r.status !== status; }).map(function (r) { return { id: r.id, status: status }; });
-      if (!ch.length) { A.toast('Нічого не змінено'); return; }
+      // записи, які не можна опублікувати (наприклад, партнер без дозволу на логотип)
+      var blocked = [];
+      if (status === 'pub' && cfg.cannotPublish) ch = ch.filter(function (c) { var why = cfg.cannotPublish(c.id); if (why) blocked.push(why); return !why; });
+      if (!ch.length) { if (blocked.length) A.toast('Не опубліковано: ' + blocked.join('; '), true); else A.toast('Нічого не змінено'); st.menuFor = null; render(); return; }
       // як у картці: публікуємо, але попереджаємо про незаповнені обовʼязкові поля
       var warn = status === 'pub' && cfg.missing ? ch.map(function (c) { return cfg.missing(c.id); }).filter(function (x) { return x && x.length; }) : [];
       cfg.onPatch(ch).then(function () {
         st.sel = {}; st.menuFor = null; render();
         var msg = ch.length === 1 && !(ids.length > 1) ? okMsg : okMsg + ': ' + ch.length;
+        if (blocked.length) msg += '. Не опубліковано: ' + blocked.join('; ');
         if (warn.length) msg += ch.length === 1 ? '. Для публікації на робочому сайті потрібно заповнити: ' + warn[0].join(', ') : '. Незаповнені обовʼязкові поля є в ' + warn.length + ' з ' + ch.length + '. Перевірте картки';
         A.toast(msg);
       }, A.saveError);

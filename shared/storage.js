@@ -134,6 +134,42 @@
     });
   }
 
+  /* ---------- звернення з форм: кожне — окремий файл у папці enquiries/, файл даних не чіпаємо ---------- */
+  var ENQ_DIR = DBX.enquiriesDir || '/enquiries';
+  var ENQ_LOCAL = 'th-gh-enquiries-v1';
+  function dbxEnquirySave(rec) {
+    var path = ENQ_DIR + '/' + rec.created.replace(/[:.]/g, '-') + '-' + rec.id + '.json';
+    return getToken().then(function (t) {
+      return fetch('https://content.dropboxapi.com/2/files/upload', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/octet-stream',
+          'Dropbox-API-Arg': argHeader({ path: path, mode: { '.tag': 'add' }, autorename: true, mute: true }) },
+        body: JSON.stringify(rec)
+      });
+    }).then(function (r) { if (!r.ok) return dbxErr(r, 'Збереження звернення'); return rec; });
+  }
+  function dbxDownload(path) {
+    return getToken().then(function (t) {
+      return fetch('https://content.dropboxapi.com/2/files/download', { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Dropbox-API-Arg': argHeader({ path: path }) } });
+    }).then(function (r) { if (!r.ok) return dbxErr(r, 'Читання звернення'); return r.json(); });
+  }
+  function dbxEnquiryList(limit) {
+    function page(res, acc) {
+      return res.json().then(function (j) {
+        acc = acc.concat(j.entries.filter(function (e) { return e['.tag'] === 'file' && /\.json$/.test(e.name); }));
+        if (j.has_more) return rpc('files/list_folder/continue', { cursor: j.cursor }).then(function (r2) { return r2.ok ? page(r2, acc) : acc; });
+        return acc;
+      });
+    }
+    return rpc('files/list_folder', { path: ENQ_DIR, limit: 2000 }).then(function (r) {
+      if (!r.ok) return r.text().then(function (t) { if (/not_found/.test(t)) return []; return dbxErr({ status: r.status, text: function () { return Promise.resolve(t); } }, 'Список звернень'); });
+      return page(r, []);
+    }).then(function (files) {
+      files.sort(function (a, b) { return a.name < b.name ? 1 : -1; });
+      return Promise.all(files.slice(0, limit || 200).map(function (f) { return dbxDownload(f.path_lower).catch(function () { return null; }); }));
+    }).then(function (L) { return L.filter(Boolean); });
+  }
+  function localEnquiries() { try { return JSON.parse(lsGet(ENQ_LOCAL) || '[]'); } catch (e) { return []; } }
+
   /* ---------- локальне сховище (тести і запуск без ключів) ---------- */
   function localRead() { var raw = lsGet(LOCAL_KEY); if (!raw) return { data: null, rev: null }; try { var p = JSON.parse(raw); return { data: p.data, rev: String(p.rev) }; } catch (e) { return { data: null, rev: null }; } }
   function localLoad() { return Promise.resolve(localRead()); }
@@ -183,7 +219,16 @@
         }, POLL_MS);
       }
     },
-    rev: function () { return lastRev; }
+    rev: function () { return lastRev; },
+    saveEnquiry: function (rec) {
+      if (MODE === 'dropbox') return dbxEnquirySave(rec);
+      var L = localEnquiries(); L.unshift(rec);
+      return lsSet(ENQ_LOCAL, JSON.stringify(L)) ? Promise.resolve(rec) : Promise.reject(StoreError('quota', 'Браузеру не вистачає місця', ''));
+    },
+    listEnquiries: function (limit) {
+      if (MODE === 'dropbox') return dbxEnquiryList(limit);
+      return Promise.resolve(localEnquiries().slice(0, limit || 200));
+    }
   };
   window.THStorage = THStorage;
 })();
