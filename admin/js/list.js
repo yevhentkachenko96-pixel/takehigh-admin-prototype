@@ -62,6 +62,7 @@
       (cfg.actions || ['edit']).forEach(function (a) {
         if (a === 'edit') m.push('<a class="menu-item" role="menuitem" href="' + esc(r.href) + '">Редагувати</a>');
         if (a === 'makeMain' && r.status === 'pub' && !r.featured) m.push('<button class="menu-item" role="menuitem" type="button" data-act="main" data-id="' + esc(r.id) + '">Зробити головною</button>');
+        if (a === 'publish' && r.status !== 'pub') m.push('<button class="menu-item" role="menuitem" type="button" data-act="pub" data-id="' + esc(r.id) + '">Опублікувати</button>');
         if (a === 'unpublish' && r.status === 'pub') m.push('<button class="menu-item" role="menuitem" type="button" data-act="unpub" data-id="' + esc(r.id) + '">Зняти з публікації</button>');
         if (a === 'delete' && cfg.onDelete) m.push('<div class="menu-sep" role="separator"></div><button class="menu-item btn-danger-text" role="menuitem" type="button" data-act="del" data-id="' + esc(r.id) + '">Видалити</button>');
       });
@@ -114,6 +115,7 @@
       if (total) h += filterBar(total, R.length);
       if (nSel) {
         h += '<div class="bulk" role="region" aria-label="Масові дії"><strong>Обрано: ' + nSel + '</strong>' +
+          ((cfg.actions || []).indexOf('publish') >= 0 ? '<button class="btn btn-secondary btn-sm" type="button" data-act="bulk-pub">Опублікувати</button>' : '') +
           '<button class="btn btn-secondary btn-sm" type="button" data-act="bulk-unpub">Зняти з публікації</button>' +
           (cfg.onDelete ? '<button class="btn btn-secondary btn-sm btn-danger-text" type="button" data-act="bulk-del">Видалити</button>' : '') +
           '<button class="btn btn-ghost btn-sm" type="button" data-act="bulk-clear">Скасувати вибір</button></div>';
@@ -229,7 +231,14 @@
       var R = rows().filter(function (r) { return ids.indexOf(r.id) >= 0; });
       var ch = R.filter(function (r) { return status === 'draft' ? r.status === 'pub' : r.status !== status; }).map(function (r) { return { id: r.id, status: status }; });
       if (!ch.length) { A.toast('Нічого не змінено'); return; }
-      cfg.onPatch(ch).then(function () { st.sel = {}; st.menuFor = null; render(); A.toast(okMsg + ': ' + ch.length); }, A.saveError);
+      // як у картці: публікуємо, але попереджаємо про незаповнені обовʼязкові поля
+      var warn = status === 'pub' && cfg.missing ? ch.map(function (c) { return cfg.missing(c.id); }).filter(function (x) { return x && x.length; }) : [];
+      cfg.onPatch(ch).then(function () {
+        st.sel = {}; st.menuFor = null; render();
+        var msg = ch.length === 1 && !(ids.length > 1) ? okMsg : okMsg + ': ' + ch.length;
+        if (warn.length) msg += ch.length === 1 ? '. Для публікації на робочому сайті потрібно заповнити: ' + warn[0].join(', ') : '. Незаповнені обовʼязкові поля є в ' + warn.length + ' з ' + ch.length + '. Перевірте картки';
+        A.toast(msg);
+      }, A.saveError);
     }
 
     root.onclick = function (e) {
@@ -244,11 +253,13 @@
       else if (act === 'menu') { st.menuFor = st.menuFor === id ? null : id; render(); var f = root.querySelector('.menu .menu-item'); if (f) f.focus(); }
       else if (act === 'close') { st.menuFor = null; render(); }
       else if (act === 'unpub') patch([id], 'draft', 'Знято з публікації');
+      else if (act === 'pub') patch([id], 'pub', 'Опубліковано');
       else if (act === 'del') askDelete([id]);
       else if (act === 'del-cancel') { if (!st.busy) { st.confirm = null; render(); } }
       else if (act === 'del-ok') { if (!st.busy) doDelete(); }
       else if (act === 'main') cfg.onPatch([{ id: id, featured: true }]).then(function () { st.menuFor = null; render(); A.toast('Новина тепер головна'); }, A.saveError);
       else if (act === 'bulk-unpub') patch(Object.keys(st.sel), 'draft', 'Знято з публікації');
+      else if (act === 'bulk-pub') patch(Object.keys(st.sel), 'pub', 'Опубліковано');
       else if (act === 'bulk-del') askDelete(Object.keys(st.sel));
       else if (act === 'bulk-clear') { st.sel = {}; render(); }
     };

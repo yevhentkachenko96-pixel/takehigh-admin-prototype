@@ -21,7 +21,12 @@
         return 'Порядок як на сайті. Перетягніть рядок за ручку або натисніть на ручку і змінюйте порядок стрілками ↑↓.';
       },
       emptyTitle: 'У цій групі ще нікого немає', emptyText: 'Додайте учасника і оберіть групу в картці.',
-      actions: ['edit', 'unpublish', 'delete'], entityLabel: 'учасника', entityForms: ['учасники', 'учасників'],
+      actions: ['edit', 'publish', 'unpublish', 'delete'],
+      missing: function (id) {
+        var m = A.data.members.find(function (x) { return x.id === id; }); if (!m) return [];
+        var F = [['name', 'Імʼя'], ['group', 'Група'], ['portrait', 'Портрет']].concat(m.group === 'Crew' ? [['role', 'Основна роль'], ['sport', 'Спортивна роль']] : []);
+        return F.filter(function (f) { var v = m[f[0]]; return v == null || String(v).trim() === ''; }).map(function (f) { return f[1]; });
+      }, entityLabel: 'учасника', entityForms: ['учасники', 'учасників'],
       cols: [
         { key: 'photo', label: 'Фото', kind: 'thumb', w: '72px', square: true },
         { key: 'name', label: 'Імʼя', kind: 'link', sortable: true },

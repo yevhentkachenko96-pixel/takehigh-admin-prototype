@@ -23,7 +23,12 @@
         { key: 'type', label: 'Тип', options: TYPES },
         { key: 'status', label: 'Статус', options: ['draft', 'pub'], names: A.STATUS }
       ],
-      actions: ['edit', 'makeMain', 'unpublish', 'delete'], entityLabel: 'новину', entityForms: ['новини', 'новин'],
+      actions: ['edit', 'makeMain', 'publish', 'unpublish', 'delete'],
+      missing: function (id) {
+        var n = A.data.news.find(function (x) { return x.id === id; }); if (!n) return [];
+        var F = [['title', 'Заголовок'], ['deck', 'Короткий опис'], ['date', 'Дата'], ['section', 'Розділ'], ['type', 'Тип'], ['img', 'Головне фото'], ['body', 'Текст'], ['source', 'Джерело']];
+        return F.filter(function (f) { var v = n[f[0]]; return v == null || String(v).trim() === ''; }).map(function (f) { return f[1]; });
+      }, entityLabel: 'новину', entityForms: ['новини', 'новин'],
       cols: [
         { key: 'photo', label: 'Фото', kind: 'thumb', w: '72px' },
         { key: 'title', label: 'Заголовок', kind: 'link', sortable: true },
