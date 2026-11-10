@@ -130,7 +130,7 @@ svg.i-sm{width:14px;height:14px}
 .empty-ico{width:48px;height:48px;border-radius:50%;background:var(--green-soft);color:var(--green);display:flex;align-items:center;justify-content:center}
 
 /* тости */
-.toast{position:fixed;top:20px;right:24px;z-index:60;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--r);background:#fff;border:1px solid var(--success-border);color:var(--text);box-shadow:0 8px 24px rgba(12,12,12,.10);font-weight:500;min-width:240px}
+.toast{pointer-events:none;max-width:min(480px,calc(100vw - 48px));position:fixed;top:20px;right:24px;z-index:60;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--r);background:#fff;border:1px solid var(--success-border);color:var(--text);box-shadow:0 8px 24px rgba(12,12,12,.10);font-weight:500;min-width:240px}
 .toast .ti{color:var(--success)}
 .toast-err{border-color:var(--error-border)} .toast-err .ti{color:var(--error)}
 
@@ -436,12 +436,40 @@ tr.is-dragging{opacity:.45}
 /* чекбокс, повторювані блоки, перегляд звернення */
 .check-row{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:14px;line-height:20px}
 .check-row .chk{margin-top:0}
-.rep{display:flex;flex-direction:column;gap:12px}
-.rep-item{display:flex;flex-direction:column;gap:10px;border:1px solid var(--border-strong);border-radius:var(--r);padding:12px;background:#fff}
-.rep-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.rep-num{font-weight:600;color:var(--muted)}
-.rep-tools{display:flex;gap:4px;align-items:center}
-.rep-tools .icon-btn:disabled{opacity:.35}
+.rep{display:flex;flex-direction:column;gap:8px}
+.rep-cols,.rep-item{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:12px;align-items:start}
+.rep-cols{font-size:13px;font-weight:500;color:var(--text);padding:0 11px 2px}
+.rep-cols .rep-fields{display:grid;gap:12px}
+.rep-item{border:1px solid var(--border);border-radius:var(--r);padding:10px 10px 6px;background:#fff}
+.rep-item .rep-fields{display:grid;gap:12px;min-width:0}
+.rep-f{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rep-f .counter{align-self:flex-end;font-size:12px}
+.rep-f.is-invalid .input,.rep-f.is-invalid .textarea{border-color:var(--error)}
+.rep-lab{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.rep-item .rep-num{font-size:14px;font-weight:600;color:var(--muted);padding-top:10px;text-align:center;min-width:0}
+.rep-tools{display:flex;gap:2px;align-items:center;padding-top:2px}
+.rep-tools .icon-btn:disabled{opacity:.3}
+.rep-item .textarea{min-height:44px}
+/* рядки «назва зліва — поле справа» */
+.grid2.rows{grid-template-columns:1fr}
+.grid2.rows .field{display:grid;grid-template-columns:180px minmax(0,1fr);column-gap:16px;align-items:start}
+.grid2.rows .field > .label{grid-row:1 / span 2;padding-top:10px}
+.grid2.rows .field > :not(.label){grid-column:2}
+/* вкладки форми */
+.ftabs{margin-bottom:-8px}
+.tab.has-err{color:var(--error)}
+.tab-err{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--error);color:#fff;font-size:11px;font-weight:600}
+@media (max-width:760px){
+  .rep-cols{display:none}
+  .rep-item{grid-template-columns:1fr auto;grid-template-areas:"num tools" "f f"}
+  .rep-item .rep-num{grid-area:num;text-align:left;padding-top:8px}
+  .rep-tools{grid-area:tools}
+  .rep-item .rep-fields{grid-area:f;grid-template-columns:1fr!important}
+  .rep-lab{position:static;width:auto;height:auto;clip:auto;font-size:13px;font-weight:500}
+  .grid2.rows .field{grid-template-columns:1fr}
+  .grid2.rows .field > .label{grid-row:auto;padding-top:0}
+  .grid2.rows .field > :not(.label){grid-column:1}
+}
 .kv-list{margin:0;display:grid;gap:10px}
 .kv{display:grid;grid-template-columns:200px 1fr;gap:12px}
 .kv dt{color:var(--muted);font-size:13px}

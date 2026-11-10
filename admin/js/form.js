@@ -14,7 +14,7 @@
   A.form = function (root, cfg) {
     var fields = [];
     cfg.sections.forEach(function (s) { s.fields.forEach(function (f) { fields.push(f); }); });
-    var st = { vals: {}, photo: {}, q: {}, act: {}, open: null, tried: false, status: cfg.status || 'draft', title: cfg.title, meta: cfg.meta, warn: [], saving: false };
+    var st = { tab: 0, vals: {}, photo: {}, q: {}, act: {}, open: null, tried: false, status: cfg.status || 'draft', title: cfg.title, meta: cfg.meta, warn: [], saving: false };
     fields.forEach(function (f) {
       st.vals[f.id] = f.value !== undefined ? JSON.parse(JSON.stringify(f.value)) : (f.type === 'multi' ? [] : (f.type === 'photo' || f.type === 'map' ? null : ''));
       if (f.type === 'map' && !A.isPoint(st.vals[f.id])) st.vals[f.id] = null;
@@ -93,18 +93,21 @@
       } else if (f.type === 'check') {
         h += '<label class="check-row"><input type="checkbox" class="chk" id="' + dom + '" data-f="' + f.id + '" data-check="1"' + (x === true ? ' checked' : '') + inv + desc + '><span>' + esc(f.text || '') + '</span></label>';
       } else if (f.type === 'rep') {
-        h += '<div class="rep" id="' + dom + '" role="group" aria-labelledby="l-' + f.id + '">' + x.map(function (it, i) {
-          return '<div class="rep-item"><div class="rep-head"><span class="rep-num">' + (i < 9 ? '0' : '') + (i + 1) + '</span><span class="rep-tools">' +
+        var cols = f.fields.map(function (sf) { return sf.w || '1fr'; }).join(' ');
+        h += '<div class="rep" id="' + dom + '" role="group" aria-labelledby="l-' + f.id + '">' +
+          (x.length ? '<div class="rep-cols" aria-hidden="true"><span></span><span class="rep-fields" style="grid-template-columns:' + cols + '">' + f.fields.map(function (sf) { return '<span>' + esc(sf.label) + (sf.req ? ' <span class="req">*</span>' : '') + '</span>'; }).join('') + '</span><span></span></div>' : '') +
+          x.map(function (it, i) {
+          var fh = f.fields.map(function (sf) {
+              var sid = 'r-' + f.id + '-' + i + '-' + sf.id, sv = String(it[sf.id] || ''), over = sf.max && sv.length > sf.max, emp = st.tried && sf.req && !sv.trim();
+              var at = ' id="' + sid + '" data-rep="' + f.id + '" data-i="' + i + '" data-sf="' + sf.id + '"' + (over || emp ? ' aria-invalid="true"' : '') + ' aria-describedby="cn-' + sid + '"';
+              var inp = sf.type === 'textarea' ? '<textarea class="textarea" rows="2"' + at + '>' + esc(sv) + '</textarea>' : '<input class="input"' + at + ' value="' + esc(sv) + '">';
+              return '<div class="rep-f' + (over || emp ? ' is-invalid' : '') + '"><label class="rep-lab" for="' + sid + '">' + esc(sf.label) + ' ' + (i + 1) + '</label>' + inp +
+                '<span class="counter' + (over ? ' over' : '') + '" id="cn-' + sid + '">' + sv.length + ' / ' + sf.max + '</span></div>';
+            }).join('');
+          return '<div class="rep-item"><span class="rep-num" aria-hidden="true">' + (i < 9 ? '0' : '') + (i + 1) + '</span><div class="rep-fields" style="grid-template-columns:' + cols + '">' + fh + '</div><span class="rep-tools">' +
             '<button class="icon-btn" type="button" data-act="rep-up" data-f="' + f.id + '" data-i="' + i + '" aria-label="Вище: ' + (f.itemName1 || 'пункт') + ' ' + (i + 1) + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
             '<button class="icon-btn" type="button" data-act="rep-down" data-f="' + f.id + '" data-i="' + i + '" aria-label="Нижче: ' + (f.itemName1 || 'пункт') + ' ' + (i + 1) + '"' + (i === x.length - 1 ? ' disabled' : '') + '>↓</button>' +
-            '<button class="btn btn-ghost btn-sm btn-danger-text" type="button" data-act="rep-x" data-f="' + f.id + '" data-i="' + i + '"' + (f.min && x.length <= f.min ? ' disabled title="Мінімум ' + f.min + '"' : '') + '>Видалити</button></span></div>' +
-            f.fields.map(function (sf) {
-              var sid = 'r-' + f.id + '-' + i + '-' + sf.id, sv = String(it[sf.id] || '');
-              var inp = sf.type === 'textarea' ? '<textarea class="textarea" rows="2" id="' + sid + '" data-rep="' + f.id + '" data-i="' + i + '" data-sf="' + sf.id + '">' + esc(sv) + '</textarea>'
-                : '<input class="input" id="' + sid + '" data-rep="' + f.id + '" data-i="' + i + '" data-sf="' + sf.id + '" value="' + esc(sv) + '">';
-              return '<div class="field"><label class="label" for="' + sid + '" style="font-size:13px">' + esc(sf.label) + (sf.req ? '<span class="req" aria-hidden="true">*</span>' : '') + '</label>' + inp +
-                '<div class="below"><span class="counter' + (sf.max && sv.length > sf.max ? ' over' : '') + '" id="cn-' + sid + '">' + sv.length + ' / ' + sf.max + '</span></div></div>';
-            }).join('') + '</div>';
+            '<button class="icon-btn btn-danger-text" type="button" data-act="rep-x" data-f="' + f.id + '" data-i="' + i + '" aria-label="Видалити: ' + (f.itemName1 || 'пункт') + ' ' + (i + 1) + '"' + (f.min && x.length <= f.min ? ' disabled title="Мінімум ' + f.min + '"' : ' title="Видалити"') + '>' + icon('x', 'i-sm') + '</button></span></div>';
         }).join('') + '<div><button class="btn btn-secondary btn-sm" type="button" data-act="rep-add" data-f="' + f.id + '"' + (f.max && x.length >= f.max ? ' disabled' : '') + '>' + icon('plus', 'i-sm') + esc(f.addText || 'Додати') + '</button>' +
           (f.max ? ' <span class="hint" style="font-size:13px">' + x.length + ' з ' + (f.min ? f.min + '–' : '') + f.max + '</span>' : '') + '</div></div>';
       } else if (f.type === 'multi') {
@@ -179,8 +182,17 @@
       if (st.warn.length) h += '<div class="banner banner-warn" role="status">' + icon('warn') + '<div><b>Збережено з незаповненими полями.</b> Для публікації на робочому сайті потрібно заповнити: ' + esc(st.warn.join(', ')) + '.</div></div>';
       if (A.stale) h += '<div class="banner banner-err" role="alert">' + icon('err') + '<div><b>Дані змінилися в іншому вікні.</b> Щоб не перезаписати чужі правки, оновіть сторінку. Ваші незбережені зміни в цій картці пропадуть. <button class="btn btn-secondary btn-sm" type="button" data-act="reload">Оновити</button></div></div>';
       h += '<p class="meta" style="margin:0"><span class="req" aria-hidden="true">*</span> — обовʼязкове поле</p>';
-      cfg.sections.forEach(function (s) {
-        h += '<section class="section" aria-label="' + esc(s.title) + '"><div class="section-head"><h2>' + esc(s.title) + '</h2>' + (s.desc ? '<p>' + esc(s.desc) + '</p>' : '') + '</div><div class="grid2">' +
+      // вкладки: кожен блок сторінки — окрема вкладка; вкладку з помилками видно одразу
+      var errIn = function (s) { return s.fields.filter(function (f) { return E[f.id]; }).length; };
+      if (cfg.tabs) {
+        h += '<div class="tabs ftabs" role="tablist" aria-label="Блоки сторінки">' + cfg.sections.map(function (s, i) {
+          var n = errIn(s), on = i === st.tab;
+          return '<button class="tab' + (n ? ' has-err' : '') + '" role="tab" type="button" id="ft-' + i + '" aria-selected="' + on + '" aria-controls="fp-' + i + '" tabindex="' + (on ? 0 : -1) + '" data-act="ftab" data-i="' + i + '">' + esc(s.title) + (n ? ' <span class="tab-err" aria-label="помилок: ' + n + '">' + n + '</span>' : '') + '</button>';
+        }).join('') + '</div>';
+      }
+      cfg.sections.forEach(function (s, i) {
+        if (cfg.tabs && i !== st.tab) return;
+        h += '<section class="section"' + (cfg.tabs ? ' role="tabpanel" id="fp-' + i + '" aria-labelledby="ft-' + i + '"' : ' aria-label="' + esc(s.title) + '"') + '><div class="section-head"><h2>' + esc(s.title) + '</h2>' + (s.desc ? '<p>' + esc(s.desc) + '</p>' : '') + '</div><div class="grid2' + (s.rows ? ' rows' : '') + '">' +
           s.fields.map(function (f) { return fieldHtml(f, E); }).join('') + '</div></section>';
       });
       h += '<div class="footbar"><span class="meta">' + esc(cfg.footMeta || 'Зміни зʼявляться на сайті після збереження') + '</span>';
@@ -205,7 +217,9 @@
       var mode = kind === 'draft' ? 'draft' : 'publish';
       var R = errorsFor(mode);
       st.tried = mode;
-      if (Object.keys(R.E).length) { render(); A.toast(mode === 'draft' ? 'Не збережено: виправте помилки' : 'Перевірте поля з помилками', true); var fe = root.querySelector('.is-invalid input, .is-invalid textarea, .is-invalid select, .is-invalid button'); if (fe) fe.focus(); return; }
+      if (Object.keys(R.E).length) {
+        if (cfg.tabs) { var ti = cfg.sections.findIndex(function (s) { return s.fields.some(function (f) { return R.E[f.id]; }); }); if (ti >= 0) st.tab = ti; }
+        render(); A.toast(mode === 'draft' ? 'Не збережено: виправте помилки' : 'Перевірте поля з помилками', true); var fe = root.querySelector('.is-invalid input, .is-invalid textarea, .is-invalid select, .is-invalid button'); if (fe) fe.focus(); return; }
       var status = kind === 'publish' ? 'pub' : (kind === 'draft' ? (st.status === 'pub' ? 'pub' : 'draft') : st.status);
       var warn = Object.keys(R.W).map(function (id) { return byId(id).label; });
       fields.forEach(function (f) { if (f.slug && !st.vals[f.id] && f.slugFrom) st.vals[f.id] = A.slugify(st.vals[f.slugFrom]); });
@@ -397,6 +411,9 @@
     };
     root.onkeydown = function (e) {
       var t = e.target;
+      if (t.dataset && t.dataset.act === 'ftab' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+        e.preventDefault(); var nT = cfg.sections.length; st.tab = (st.tab + (e.key === 'ArrowRight' ? 1 : nT - 1)) % nT; render(); var tb2 = document.getElementById('ft-' + st.tab); if (tb2) tb2.focus(); return;
+      }
       if (t.dataset && t.dataset.multi) {
         var f = byId(t.dataset.multi);
         var items = st.open === f.id ? suggestItems(f) : [], i = Math.min(st.act[f.id] || 0, Math.max(items.length - 1, 0));
@@ -434,6 +451,7 @@
         ta.value = v.slice(0, s) + w[0] + (sel || '') + w[1] + v.slice(en); st.vals[f.id] = ta.value; ta.focus();
         var pos = s + w[0].length + sel.length; ta.setSelectionRange(pos, pos);
       }
+      else if (act === 'ftab') { st.tab = +t.dataset.i; render(); var tb = document.getElementById('ft-' + st.tab); if (tb) tb.focus(); }
       else if (act === 'rep-add') { var na = {}; f.fields.forEach(function (sf) { na[sf.id] = ''; }); st.vals[f.id].push(na); render(); var nf = document.getElementById('r-' + f.id + '-' + (st.vals[f.id].length - 1) + '-' + f.fields[0].id); if (nf) nf.focus(); }
       else if (act === 'rep-x') { st.vals[f.id].splice(+t.dataset.i, 1); render(); }
       else if (act === 'rep-up' || act === 'rep-down') {

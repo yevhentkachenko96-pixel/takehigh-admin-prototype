@@ -104,8 +104,8 @@
     var H = (A.data.pages || {}).home || {}, L = (A.data.pages || {}).latest || {};
     var v = function (o, k, d) { return o[k] != null && o[k] !== '' ? o[k] : d; };
     return A.form(root, {
-      title: 'Тексти блоків новин на сайті', back: { label: 'Новини', href: '#/news' }, footer: 'save', liveTitle: false,
-      meta: 'Заголовки і кнопки, які оточують новини на сайті', footMeta: 'Зміни зʼявляться на сайті після збереження',
+      title: 'Тексти блоків новин на сайті', back: { label: 'Новини', href: '#/news' }, footer: 'save', liveTitle: false, tabs: true,
+      meta: 'Кожна вкладка — блок на сайті. Самі новини редагуються в списку новин', footMeta: 'Зберігаються всі вкладки разом. Зміни зʼявляться на сайті після збереження',
       sections: [
         { title: 'Home · блок News', desc: 'Великий блок новин на головній: головна новина і три найсвіжіші.', fields: [
           { id: 'latestLabel', type: 'text', label: 'Надпис над заголовком', req: true, max: 30, half: true, value: v(H, 'latestLabel', 'News') },

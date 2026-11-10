@@ -71,7 +71,8 @@
     el.innerHTML = A.icon(bad ? 'err' : 'ok', 'ti') + '<span>' + A.esc(msg) + '</span>';
     el.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.hidden = true; }, bad ? 5000 : 2600);
+    // довгі повідомлення показуються довше, щоб встигнути прочитати
+    toastTimer = setTimeout(function () { el.hidden = true; }, Math.min(9000, Math.max(bad ? 5000 : 2600, String(msg).length * 55)));
   };
 
   A.go = function (hash) { if (location.hash === hash) A.route(); else location.hash = hash; };

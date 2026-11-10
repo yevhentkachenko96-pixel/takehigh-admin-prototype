@@ -206,17 +206,17 @@
     var dirText = function (name) { var d = dirs.find(function (x) { return x._label === name; }); return d ? d.text : ''; };
     var dirFields = DIRS.map(function (name, i) { return { id: 'dir' + i, type: 'text', label: name, req: true, max: 100, value: dirText(name) }; });
     return A.form(root, {
-      title: 'Тексти сторінки Partnerships', back: { label: 'Партнери', href: '#/partners' }, footer: 'save', liveTitle: false,
-      meta: 'Вступ, напрями і кроки співпраці', footMeta: 'Зміни зʼявляться на сайті після збереження',
+      title: 'Тексти сторінки Partnerships', back: { label: 'Партнери', href: '#/partners' }, footer: 'save', liveTitle: false, tabs: true,
+      meta: 'Кожна вкладка — блок сторінки /partnerships. Партнери і кейси редагуються у своїх розділах', footMeta: 'Зберігаються всі вкладки разом. Зміни зʼявляться на сайті після збереження',
       sections: [
-        { title: 'Вступ', fields: [
+        { title: 'Вступ', desc: 'Перший екран сторінки: заголовок, текст і кнопка «Discuss a partnership», яка веде до форми.', fields: [
           { id: 'title', type: 'text', label: 'Заголовок сторінки', req: true, max: 80, value: P.title || '' },
           { id: 'intro', type: 'textarea', label: 'Вступ', req: true, max: 800, rows: 8, hint: 'Порожній рядок ділить текст на два абзаци', value: P.intro || '' }
         ] },
-        { title: 'Напрями', desc: 'Пʼять карток без фото. Назви задані в коді, тут — короткий опис кожного напряму.', fields: dirFields },
-        { title: 'Як будуємо партнерство', fields: [
+        { title: 'Напрями', rows: true, desc: 'Блок під вступом: 5 карток без фото. Назви напрямів задані в коді, тут — короткий опис кожного, до 100 символів.', fields: dirFields },
+        { title: 'Як будуємо партнерство', desc: 'Блок після напрямів: від 3 до 6 кроків з номером. Порядок на сайті — як тут, змінюється стрілками ↑ ↓.', fields: [
           { id: 'steps', type: 'rep', label: 'Кроки', req: true, min: 3, max: 6, itemName: 'кроки', itemName1: 'крок', addText: 'Додати крок',
-            fields: [{ id: 'title', label: 'Назва', req: true, max: 40 }, { id: 'text', label: 'Текст', req: true, max: 200, type: 'textarea' }],
+            fields: [{ id: 'title', label: 'Назва', req: true, max: 40, w: 'minmax(0,1fr)' }, { id: 'text', label: 'Текст', req: true, max: 200, type: 'textarea', w: 'minmax(0,2.2fr)' }],
             value: (P.steps || []).map(function (s) { return { title: s.title || '', text: s.text || '' }; }) }
         ] }
       ],

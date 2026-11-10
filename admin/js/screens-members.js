@@ -99,16 +99,18 @@
     var P = (A.data.pages || {}).club || {};
     var v = function (k, d) { return P[k] != null && P[k] !== '' ? P[k] : d; };
     return A.form(root, {
-      title: 'Тексти сторінки Club', back: { label: 'Учасники', href: '#/members' }, footer: 'save', liveTitle: false,
-      meta: 'Перший екран, заголовок блоку Crew і текст Community', footMeta: 'Зміни зʼявляться на сайті після збереження',
+      title: 'Тексти сторінки Club', back: { label: 'Учасники', href: '#/members' }, footer: 'save', liveTitle: false, tabs: true,
+      meta: 'Кожна вкладка — блок сторінки /club. Картки людей редагуються в розділі Учасники', footMeta: 'Зберігаються всі вкладки разом. Зміни зʼявляться на сайті після збереження',
       sections: [
-        { title: 'Перший екран', fields: [
+        { title: 'Перший екран', desc: 'Фото на весь екран із заголовком, під ним — вступний текст.', fields: [
           { id: 'title', type: 'text', label: 'Заголовок', req: true, max: 80, value: v('title', 'The people of TAKE HIGH') },
           { id: 'intro', type: 'textarea', label: 'Вступ', req: true, max: 1000, rows: 6, hint: 'Англійською', value: v('intro', '') },
           { id: 'heroImg', type: 'photo', label: 'Фото першого екрана', req: true, limit: 10, value: v('heroImg', null), sub: { author: v('heroAuthor', '') } }
         ] },
-        { title: 'Блоки', fields: [
-          { id: 'tagline', type: 'text', label: 'Заголовок блоку Crew', max: 60, value: v('tagline', '') },
+        { title: 'Crew', desc: 'Заголовок над картками Crew. Самі картки — у розділі Учасники.', fields: [
+          { id: 'tagline', type: 'text', label: 'Заголовок блоку Crew', max: 60, value: v('tagline', '') }
+        ] },
+        { title: 'Community', desc: 'Короткий текст наприкінці сторінки.', fields: [
           { id: 'community', type: 'textarea', label: 'Текст Community', max: 300, rows: 3, hint: 'Якщо порожньо, блок Community на сайті не показується', value: P.community || '' }
         ] }
       ],
