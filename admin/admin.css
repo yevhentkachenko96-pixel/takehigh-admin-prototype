@@ -416,3 +416,20 @@ svg.i-sm{width:14px;height:14px}
   .fdd-panel{min-width:0;width:max(100%,200px);max-width:calc(100vw - 32px)}
   .fdd-r .fdd-panel{left:auto;right:0}
 }
+/* ручний порядок */
+.tbl-wrap{position:relative}
+.tbl th.col-drag,.tbl td.col-drag{width:44px;padding-left:8px;padding-right:0}
+.drag{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;border-radius:6px;background:none;color:var(--muted);cursor:grab;touch-action:none}
+.drag:hover,.drag:focus-visible{background:var(--row-hover);color:var(--text)}
+.move-btns{display:none;gap:8px}
+tr.is-dragging{opacity:.45}
+.drop-line{position:absolute;left:8px;right:8px;height:2px;background:var(--green);border-radius:2px;pointer-events:none;z-index:5}
+.warn-txt{display:inline-flex;gap:6px;align-items:flex-start;color:#6B4100}
+.tab-n{font-size:12px;color:var(--muted);font-weight:400}
+@media (max-width:760px){
+  .tbl td.col-drag{order:20;flex:1 1 100%;width:auto;padding:4px 0 0!important}
+  .tbl td.col-drag .drag{display:none}
+  .move-btns{display:flex;width:100%}
+  .move-btns .icon-btn{flex:1;border:1px solid var(--border-strong);border-radius:var(--r-sm);font-size:18px}
+  .move-btns .icon-btn:disabled{opacity:.35}
+}

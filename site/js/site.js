@@ -77,7 +77,10 @@
   function pic(k, alt, extra) { var u = img(k); return u ? '<img src="' + esc(u) + '" alt="' + esc(alt || '') + '" loading="lazy"' + (extra || '') + '>' : '<span class="ph-empty" aria-hidden="true"></span>'; }
   function slugOf(n) { return n.slug || n.id; }
   function href(n) { return '#/news/' + encodeURIComponent(slugOf(n)); }
-  function memberName(id) { var m = (D.members || []).find(function (x) { return x.id === id; }); return m ? m.name : id; }
+  // учасник за id, зокрема видалений (його імʼя лишається в старих новинах, але без посилання)
+  function member(id) { return (D.members || []).concat(D.membersDeleted || []).find(function (x) { return x.id === id; }) || null; }
+  function memberName(id) { var m = member(id); return m ? m.name : id; }
+  function memberLink(id) { var m = (D.members || []).find(function (x) { return x.id === id; }); return m && m.status === 'pub' ? '#/club/' + encodeURIComponent(m.id) : null; }
 
   // опубліковані новини: найновіші за датою; без дати — у порядку з адмінки
   function published() {
@@ -118,6 +121,7 @@
     set('hl-title', T('home', 'latestTitle', 'Updates from the team'));
     set('hl-cta', T('home', 'latestCta', 'View all updates'));
     set('hm-label', T('home', 'mediaRowLabel', 'More from Media'));
+    set('crew-count', String((D.members || []).filter(function (x) { return x.group === 'Crew' && x.status === 'pub'; }).length));
     var m = document.getElementById('home-media');
     if (m) {
       var M = L.filter(function (n) { return n.section === 'Media'; }).slice(0, 3);
@@ -196,6 +200,64 @@
     return '<div><dt>Location</dt><dd><a class="ext" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(name || 'View on map') +
       '<span aria-hidden="true"> ↗</span><span class="sr-only"> (Google Maps, opens in a new tab)</span></a></dd></div>';
   }
+  /* ---------- сторінка Club ---------- */
+  var GROUP_LABEL = { 'Media': 'Media', 'Documentary Partner': 'Documentary Partner', 'Athlete Development Programme': 'TAKE HIGH Athlete Development Programme' };
+  function paras(t) { return String(t || '').split(/\n\s*\n/).map(function (x) { return x.trim(); }).filter(Boolean).map(function (x) { return '<p>' + esc(x) + '</p>'; }).join(''); }
+  function igLink(m, cls) {
+    if (!m.ig) return '';
+    var handle = (String(m.ig).match(/instagram\.com\/([^/?#]+)/i) || [])[1];
+    return '<a class="' + cls + '" href="' + esc(m.ig) + '" target="_blank" rel="noopener">Instagram' + (handle ? ' @' + esc(handle) : '') + '<span aria-hidden="true"> ↗</span><span class="sr-only"> (opens in a new tab)</span></a>';
+  }
+  function renderClub() {
+    var P = (D.pages || {}).club || {}, M = (D.members || []).filter(function (m) { return m.status === 'pub'; });
+    var crew = M.filter(function (m) { return m.group === 'Crew'; });
+    var hero = img(P.heroImg);
+    var h = '<section class="art-hero club-hero">' + (hero ? '<div class="ph"><img src="' + esc(hero) + '" alt=""></div>' : '<div class="ph"><span class="ph-empty"></span></div>') +
+      '<div class="wrap"><nav class="crumbs" aria-label="Breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">/</span><span>Club</span></nav>' +
+      '<span class="label">Club</span><h1>' + esc(T('club', 'title', 'The people of TAKE HIGH')) + '</h1></div>' +
+      (P.heroAuthor ? '<span class="credit">Photo: ' + esc(P.heroAuthor) + '</span>' : '') + '</section>';
+    if (P.intro) h += '<section class="club-intro"><div class="wrap"><div class="club-lead">' + paras(P.intro) + '</div></div></section>';
+    if (crew.length) {
+      h += '<section class="crew-sec" id="crew" aria-labelledby="crew-t"><div class="wrap"><div class="sec-head"><span class="label">Crew</span><h2 class="story-title" id="crew-t">' + esc(P.tagline || 'Crew') + '</h2></div><div class="crew-grid">' +
+        crew.map(function (m) {
+          var u = img(m.portrait), more = m.proof || m.ig;
+          return '<article class="mcard" id="m-' + esc(m.id) + '"><div class="ph">' + (u ? '<img src="' + esc(u) + '" alt="' + esc(m.name) + '" loading="lazy">' : '<span class="ph-empty"></span>') +
+            (m.portraitAuthor ? '<span class="mcredit">Photo: ' + esc(m.portraitAuthor) + '</span>' : '') + '</div>' +
+            '<h3>' + esc(m.name) + '</h3><p class="mrole">' + esc(m.role || '') + '</p>' + (m.sport ? '<p class="msport">' + esc(m.sport) + '</p>' : '') +
+            (more ? '<button class="readmore" type="button" data-member="' + esc(m.id) + '" aria-haspopup="dialog">Read more<span class="sr-only"> about ' + esc(m.name) + '</span></button>' : '') + '</article>';
+        }).join('') + '</div></div></section>';
+    }
+    var groups = ['Media', 'Documentary Partner', 'Athlete Development Programme'].map(function (g) { return { g: g, L: M.filter(function (m) { return m.group === g; }) }; }).filter(function (x) { return x.L.length; });
+    if (groups.length) {
+      h += '<section class="groups-sec"><div class="wrap">' + groups.map(function (x) {
+        return '<div class="ogroup"><h2 class="h3 pg-title">' + esc(GROUP_LABEL[x.g]) + '</h2><div class="ogrid">' + x.L.map(function (m) {
+          var u = img(m.portrait);
+          return '<article class="ocard" id="m-' + esc(m.id) + '"><div class="oph">' + (u ? '<img src="' + esc(u) + '" alt="' + esc(m.name) + '" loading="lazy">' : '<span class="ph-empty"></span>') + '</div>' +
+            '<div><h3>' + esc(m.name) + '</h3><p class="mrole">' + esc(m.role || '') + '</p>' + igLink(m, 'pig') + '</div></article>';
+        }).join('') + '</div></div>';
+      }).join('') + '</div></section>';
+    }
+    if (String(P.community || '').trim()) h += '<section class="community-sec"><div class="wrap"><span class="label">Community</span><p class="club-lead">' + esc(P.community) + '</p></div></section>';
+    h += '<dialog class="mdlg" id="mdlg" aria-labelledby="mdlg-t"></dialog>';
+    return { html: h, title: 'Club · TAKE HIGH' };
+  }
+  function openMember(id) {
+    var m = (D.members || []).find(function (x) { return x.id === id; }), d = document.getElementById('mdlg'); if (!m || !d) return;
+    var u = img(m.portrait);
+    d.innerHTML = '<div class="mdlg-in">' + (u ? '<img class="mdlg-ph" src="' + esc(u) + '" alt="">' : '') + '<div class="mdlg-txt"><span class="label">' + esc(m.sport || 'Crew') + '</span>' +
+      '<h2 id="mdlg-t">' + esc(m.name) + '</h2><p class="mrole">' + esc(m.role || '') + '</p>' + (m.proof ? '<p class="mproof">' + esc(m.proof) + '</p>' : '') + igLink(m, 'pig') + '</div>' +
+      '<button class="mdlg-x" type="button" data-close aria-label="Close">×</button></div>';
+    d.dataset.from = id;
+    if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  }
+  document.addEventListener('close', function (e) {
+    if (e.target && e.target.id === 'mdlg') { var b = page.querySelector('[data-member="' + e.target.dataset.from + '"]'); if (b) b.focus(); }
+  }, true);
+  function closeMember() {
+    var d = document.getElementById('mdlg'); if (!d || !d.open) return;
+    if (d.close) d.close(); else d.removeAttribute('open');
+  }
+
   function renderNews(slug) {
     var all = published();
     var n = all.find(function (x) { return slugOf(x) === slug || x.id === slug; });
@@ -212,7 +274,7 @@
       (n.section ? '<div><dt>Section</dt><dd><a href="#/news?section=' + encodeURIComponent(n.section) + '">' + esc(n.section) + '</a></dd></div>' : '') +
       (n.type ? '<div><dt>Type</dt><dd>' + esc(n.type) + '</dd></div>' : '') +
       locationRow(n) +
-      (people.length ? '<div><dt>People</dt><dd>' + people.map(function (p, i) { return i < (n.people || []).length ? '<a href="#/home/club">' + esc(p) + '</a>' : esc(p); }).join(', ') + '</dd></div>' : '') +
+      (people.length ? '<div><dt>People</dt><dd>' + people.map(function (p, i) { var l = i < (n.people || []).length ? memberLink(n.people[i]) : null; return l ? '<a href="' + l + '">' + esc(p) + '</a>' : esc(p); }).join(', ') + '</dd></div>' : '') +
       (n.partner ? '<div><dt>Partner</dt><dd>' + esc(n.partner) + '</dd></div>' : '') +
       '</dl>' + ((n.tags || []).length ? '<div class="tagrow" aria-label="Tags">' + n.tags.map(function (t) { return '<a href="#/news?tag=' + encodeURIComponent(t) + '">#' + esc(t) + '</a>'; }).join('') + '</div>' : '') +
       '</aside><div class="prose">' + (n.imgCaption ? '<p class="meta" style="margin-top:0">' + esc(n.imgCaption) + '</p>' : '') +
@@ -234,7 +296,7 @@
     var q = {}; qs.split('&').forEach(function (p) { if (!p) return; var kv = p.split('='); try { q[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || ''); } catch (e) {} });
     var parts = path.split('/').map(function (x) { try { return decodeURIComponent(x); } catch (e) { return x; } });
     // старі якорі з макета (#latest, #club…) теж працюють
-    if (parts.length === 1 && parts[0] && ['latest', 'news'].indexOf(parts[0]) < 0 && document.getElementById(parts[0]) && home.contains(document.getElementById(parts[0]))) parts = ['home', parts[0]];
+    if (parts.length === 1 && parts[0] && ['latest', 'news', 'club'].indexOf(parts[0]) < 0 && document.getElementById(parts[0]) && home.contains(document.getElementById(parts[0]))) parts = ['home', parts[0]];
     return { parts: parts, q: q };
   }
   var lastKey = null;
@@ -243,6 +305,7 @@
     if (p[0] === 'latest') { location.replace('#/news' + location.hash.replace(/^#\/?latest/, '')); return; }
     if (p[0] === 'news' && p[1]) view = renderNews(p[1]);
     else if (p[0] === 'news') view = renderLatest(r.q);
+    else if (p[0] === 'club') view = renderClub();
     if (view) {
       page.innerHTML = view.html; page.hidden = false; home.hidden = true; document.title = view.title;
     } else {
@@ -251,11 +314,17 @@
     var key = p.join('/') + JSON.stringify(r.q);
     if (keepScroll && key === lastKey) return;
     lastKey = key;
+    if (p[0] === 'club' && p[1]) {
+      var mc = document.getElementById('m-' + p[1]);
+      if (mc) { mc.scrollIntoView({ block: 'center', behavior: 'instant' }); mc.classList.add('flash'); setTimeout(function () { mc.classList.remove('flash'); }, 1800); return; }
+    }
     if (!view && p[0] === 'home' && p[1]) { var t = document.getElementById(p[1]); if (t) { window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY, behavior: 'instant' }); return; } }
     window.scrollTo(0, 0);
   }
   window.addEventListener('hashchange', function () { route(false); });
   page.addEventListener('click', function (e) {
+    var rm = e.target.closest('[data-member]'); if (rm) { openMember(rm.getAttribute('data-member')); return; }
+    if (e.target.closest('[data-close]') || e.target.id === 'mdlg') { closeMember(); return; }
     if (!e.target.closest('[data-more]')) return;
     var before = page.querySelectorAll('.ngrid > *').length;
     LM.n += 6; route(true);

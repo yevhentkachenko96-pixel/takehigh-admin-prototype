@@ -10,8 +10,12 @@
     // пошук і фільтри живуть до оновлення сторінки: повернення з картки запису їх не скидає
     A.listMemory = A.listMemory || {};
     var mem = cfg.memoryKey ? (A.listMemory[cfg.memoryKey] = A.listMemory[cfg.memoryKey] || { q: '', f: {} }) : { q: '', f: {} };
+    if (cfg.tabs && !mem.tab) mem.tab = cfg.tabs[0].key;
+    // ручний порядок: лише у вкладці, де він увімкнений, і коли немає пошуку чи фільтрів
+    function manual() { return !!(cfg.manualTab && cfg.manualTab(mem.tab) && !active()); }
     function active() { return !!(mem.q.trim() || Object.keys(mem.f).some(function (k) { return (mem.f[k] || []).length; })); }
     function passes(r) {
+      if (cfg.tabs && (r.f ? r.f.tab : r.tab) !== mem.tab) return false;
       var q = mem.q.trim().toLowerCase();
       if (q && String(r.c[cfg.search && cfg.search.key || 'title'] || '').toLowerCase().indexOf(q) < 0) return false;
       // усередині фільтра — «або», між фільтрами і пошуком — «і»
@@ -22,7 +26,7 @@
     function allRows() { return (typeof cfg.rows === 'function' ? cfg.rows() : cfg.rows).slice(); }
     function rows() {
       var R = allRows().filter(passes);
-      if (st.sort) {
+      if (st.sort && !manual()) {
         var k = st.sort.key, d = st.sort.dir === 'desc' ? -1 : 1;
         R.sort(function (a, b) {
           var x = (a.s && a.s[k] !== undefined) ? a.s[k] : (k === 'status' ? a.status : a.c[k]);
@@ -84,7 +88,7 @@
     function render() {
       var ae = document.activeElement, keepId = ae && root.contains(ae) ? (ae.id || (ae.dataset && ae.dataset.fk ? 'fk:' + ae.dataset.fk + ':' + ae.value : null)) : null, cs = null, ce = null;
       try { if (ae && ae.id === 'lst-q') { cs = ae.selectionStart; ce = ae.selectionEnd; } } catch (x) {}
-      var total = allRows().length;
+      var total = cfg.tabs ? allRows().filter(function (r) { return (r.f ? r.f.tab : r.tab) === mem.tab; }).length : allRows().length;
       var R = rows();
       var ids = R.map(function (r) { return r.id; });
       Object.keys(st.sel).forEach(function (id) { if (ids.indexOf(id) < 0) delete st.sel[id]; });
@@ -98,7 +102,15 @@
         h += '</div>';
       }
       h += '</header>';
-      if (cfg.note) h += '<p class="note" style="margin:0">' + icon('info') + '<span>' + esc(cfg.note) + '</span></p>';
+      if (cfg.tabs) {
+        var all0 = allRows();
+        h += '<div class="tabs" role="tablist" aria-label="Групи">' + cfg.tabs.map(function (tb) {
+          var n = all0.filter(function (r) { return (r.f ? r.f.tab : r.tab) === tb.key; }).length, on = tb.key === mem.tab;
+          return '<button class="tab' + (on ? ' is-active' : '') + '" role="tab" type="button" aria-selected="' + on + '" data-act="tab" data-key="' + esc(tb.key) + '">' + esc(tb.label) + ' <span class="tab-n">' + n + '</span></button>';
+        }).join('') + '</div>';
+      }
+      var note = typeof cfg.note === 'function' ? cfg.note(mem.tab, manual(), active()) : cfg.note;
+      if (note) h += '<p class="note" style="margin:0">' + icon('info') + '<span>' + esc(note) + '</span></p>';
       if (total) h += filterBar(total, R.length);
       if (nSel) {
         h += '<div class="bulk" role="region" aria-label="Масові дії"><strong>Обрано: ' + nSel + '</strong>' +
@@ -114,12 +126,14 @@
       } else {
         var all = nSel === R.length;
         h += '<div class="tbl-wrap"><table class="tbl"><thead><tr>';
+        var man = manual();
+        if (man) h += '<th class="col-drag"><span class="sr-only">Порядок</span></th>';
         if (selectable) h += '<th class="col-chk"><input class="chk" type="checkbox" aria-label="Обрати всі" data-act="all"' + (all ? ' checked' : '') + '></th>';
         cfg.cols.forEach(function (col) {
-          var sorted = st.sort && st.sort.key === col.key;
+          var sorted = !man && st.sort && st.sort.key === col.key;
           var aria = sorted ? (st.sort.dir === 'asc' ? 'ascending' : 'descending') : null;
           h += '<th' + (col.w ? ' style="width:' + col.w + '"' : '') + (aria ? ' aria-sort="' + aria + '"' : '') + '>';
-          if (col.sortable) h += '<button class="th-btn' + (sorted ? ' is-sorted' : '') + '" type="button" data-act="sort" data-key="' + esc(col.key) + '" data-first="' + (col.firstDir || 'asc') + '">' + esc(col.label) +
+          if (col.sortable && !man) h += '<button class="th-btn' + (sorted ? ' is-sorted' : '') + '" type="button" data-act="sort" data-key="' + esc(col.key) + '" data-first="' + (col.firstDir || 'asc') + '">' + esc(col.label) +
             '<span class="arrow' + (sorted ? '' : ' arrow-idle') + '" aria-hidden="true">' + (sorted ? (st.sort.dir === 'asc' ? '↑' : '↓') : '↕') + '</span></button>';
           else h += esc(col.label);
           h += '</th>';
@@ -127,7 +141,12 @@
         h += '<th class="col-act"><span class="sr-only">Дії</span></th></tr></thead><tbody>';
         R.forEach(function (r) {
           var on = !!st.sel[r.id], title = r.c[cfg.titleKey || 'title'] || '';
-          h += '<tr class="' + (on ? 'is-selected' : '') + '">';
+          h += '<tr class="' + (on ? 'is-selected' : '') + '" data-row="' + esc(r.id) + '">';
+          if (man) {
+            var ri = R.indexOf(r);
+            h += '<td class="col-drag"><div class="drag-wrap lift"><button class="drag" type="button" data-drag="' + esc(r.id) + '" aria-label="Перемістити: ' + esc(title) + '. Стрілки вгору або вниз змінюють порядок" title="Перетягніть або натисніть і використайте стрілки ↑↓">' + A.icon('grip', 'i-sm') + '</button>' +
+              '<span class="move-btns"><button class="icon-btn" type="button" data-act="move" data-id="' + esc(r.id) + '" data-dir="-1" aria-label="Вище: ' + esc(title) + '"' + (ri === 0 ? ' disabled' : '') + '>↑</button><button class="icon-btn" type="button" data-act="move" data-id="' + esc(r.id) + '" data-dir="1" aria-label="Нижче: ' + esc(title) + '"' + (ri === R.length - 1 ? ' disabled' : '') + '>↓</button></span></div></td>';
+          }
           if (selectable) h += '<td class="col-chk"><input class="chk lift" type="checkbox" aria-label="Обрати: ' + esc(title) + '" data-act="sel" data-id="' + esc(r.id) + '"' + (on ? ' checked' : '') + '></td>';
           cfg.cols.forEach(function (col) { h += cell(col, r); });
           var open = st.menuFor === r.id;
@@ -158,6 +177,40 @@
 
     // 2–4 новини, 5+ новин (cfg.entityForms: [2–4, 5+])
     function plural(n) { var F = cfg.entityForms || ['записи', 'записів'], d = n % 10, h = n % 100; return d >= 2 && d <= 4 && (h < 12 || h > 14) ? F[0] : F[1]; }
+    /* ---------- ручний порядок: перетягування за ручку, стрілки з клавіатури, кнопки ↑↓ на телефоні ---------- */
+    function saveOrder(ids, focusSel) {
+      if (!cfg.onReorder) return;
+      cfg.onReorder(mem.tab, ids).then(function (ch) { render(); if (ch) A.toast('Порядок збережено'); var f = focusSel && root.querySelector(focusSel); if (f) f.focus(); }, function (e) { render(); A.saveError(e); });
+    }
+    function move(id, dir, focusSel) {
+      var ids = rows().map(function (r) { return r.id; }), i = ids.indexOf(id), j = i + dir;
+      if (i < 0 || j < 0 || j >= ids.length) return;
+      ids.splice(i, 1); ids.splice(j, 0, id); saveOrder(ids, focusSel);
+    }
+    root.onpointerdown = function (e) {
+      var hnd = e.target.closest('[data-drag]'); if (!hnd || e.button > 0) return;
+      e.preventDefault();
+      var id = hnd.getAttribute('data-drag'), tb = root.querySelector('tbody'), row = hnd.closest('tr');
+      var trs = Array.prototype.slice.call(tb.querySelectorAll('tr')), from = trs.indexOf(row), to = from, moved = false, y0 = e.clientY;
+      row.classList.add('is-dragging'); try { hnd.setPointerCapture(e.pointerId); } catch (x) {}
+      var line = document.createElement('div'); line.className = 'drop-line'; tb.closest('.tbl-wrap').appendChild(line); line.hidden = true;
+      function onMove(ev) {
+        if (Math.abs(ev.clientY - y0) > 4) moved = true; if (!moved) return;
+        to = trs.length; for (var k = 0; k < trs.length; k++) { var b = trs[k].getBoundingClientRect(); if (ev.clientY < b.top + b.height / 2) { to = k; break; } }
+        var wrapR = tb.closest('.tbl-wrap').getBoundingClientRect(), ref = to < trs.length ? trs[to].getBoundingClientRect().top : trs[trs.length - 1].getBoundingClientRect().bottom;
+        line.hidden = false; line.style.top = (ref - wrapR.top + tb.closest('.tbl-wrap').scrollTop - 1) + 'px';
+      }
+      function onUp() {
+        hnd.removeEventListener('pointermove', onMove); hnd.removeEventListener('pointerup', onUp); hnd.removeEventListener('pointercancel', onUp);
+        row.classList.remove('is-dragging'); line.remove();
+        if (!moved) { hnd.focus(); return; }
+        var ids = trs.map(function (r) { return r.getAttribute('data-row'); }), target = to > from ? to - 1 : to;
+        if (target === from) return;
+        ids.splice(from, 1); ids.splice(target, 0, id); saveOrder(ids, '[data-drag="' + id + '"]');
+      }
+      hnd.addEventListener('pointermove', onMove); hnd.addEventListener('pointerup', onUp); hnd.addEventListener('pointercancel', onUp);
+    };
+
     function askDelete(ids) {
       var R = rows().filter(function (r) { return ids.indexOf(r.id) >= 0; });
       if (!R.length) return;
@@ -182,6 +235,8 @@
     root.onclick = function (e) {
       var t = e.target.closest('[data-act]'); if (!t || !root.contains(t)) return;
       var act = t.getAttribute('data-act'), id = t.getAttribute('data-id');
+      if (act === 'tab') { mem.tab = t.getAttribute('data-key'); st.sel = {}; st.menuFor = null; render(); var tb = root.querySelector('.tab.is-active'); if (tb) tb.focus(); return; }
+      if (act === 'move') { move(id, +t.getAttribute('data-dir'), '[data-act="move"][data-id="' + id + '"][data-dir="' + t.getAttribute('data-dir') + '"]'); return; }
       if (act === 'dd') { var k0 = t.getAttribute('data-key'); st.dd = st.dd === k0 ? null : k0; render(); var c0 = root.querySelector('.fdd-panel input'); if (c0 && st.dd) c0.focus(); return; }
       if (act === 'dd-clear') { delete mem.f[t.getAttribute('data-key')]; render(); return; }
       if (act === 'reset') { mem.q = ''; mem.f = {}; if (A.listMemory && cfg.memoryKey) A.listMemory[cfg.memoryKey] = mem; st.dd = null; render(); var q0 = document.getElementById('lst-q'); if (q0) q0.focus(); return; }
@@ -218,6 +273,8 @@
     document.addEventListener('mousedown', outside, true);
     document.addEventListener('touchstart', outside, true);
     root.onkeydown = function (e) {
+      var dh = e.target.closest && e.target.closest('[data-drag]');
+      if (dh && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); var did = dh.getAttribute('data-drag'); move(did, e.key === 'ArrowUp' ? -1 : 1, '[data-drag="' + did + '"]'); return; }
       if (e.key === 'Escape' && st.dd) { var k1 = st.dd; st.dd = null; render(); var b1 = root.querySelector('[data-act="dd"][data-key="' + k1 + '"]'); if (b1) b1.focus(); return; }
       if (e.key === 'Escape' && st.confirm && !st.busy) { st.confirm = null; render(); return; }
       if (e.key === 'Escape' && st.menuFor) { st.menuFor = null; render(); }

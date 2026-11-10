@@ -6,8 +6,10 @@
 
   var SECTIONS = ['Performance', 'Club', 'Media', 'Partnerships', 'Access'];
   var TYPES = ['Session Report', 'Team Update', 'Technical', 'Announcement', 'Feature', 'In Pictures', 'Media Release', 'Partner Update'];
-  var memberName = function (id) { var m = A.data.members.find(function (x) { return x.id === id; }); return m ? m.name : id; };
-  var memberId = function (name) { var m = A.data.members.find(function (x) { return x.name === name; }); return m ? m.id : name; };
+  // учасники, зокрема видалені: імʼя видаленого лишається в старих новинах
+  var allMembers = function () { return A.data.members.concat(A.data.membersDeleted || []); };
+  var memberName = function (id) { var m = allMembers().find(function (x) { return x.id === id; }); return m ? m.name : id; };
+  var memberId = function (name) { var m = allMembers().find(function (x) { return x.name === name; }); return m ? m.id : name; };
 
   A.screens.news = function (root) {
     return A.list(root, {
@@ -65,7 +67,7 @@
         ] },
         { title: 'Теги і люди', fields: [
           { id: 'tags', type: 'multi', label: 'Теги', lower: true, options: D.tags.slice(), blocked: (D.tagsDeleted || []).slice(), blockedText: function (t) { return 'Тег «' + t + '» видалено, додати не можна. Відновити — у розділі Теги'; }, allowNew: true, itemMax: 30, newText: 'Створити тег', ph: 'Почніть вводити або створіть новий тег', hint: 'Теги завжди малими літерами, на сайті: #nazaré. Новий тег додається в довідник', value: v('tags', []).slice() },
-          { id: 'people', type: 'multi', label: 'Люди з команди', options: D.members.filter(function (m) { return m.status === 'pub'; }).map(function (m) { return m.name; }), ph: 'Оберіть учасників', noneText: 'Нічого не знайдено серед опублікованих учасників', hint: 'Лише опубліковані учасники. На сайті — посилання на Club', value: v('people', []).map(memberName) },
+          { id: 'people', type: 'multi', label: 'Люди з команди', blocked: (D.membersDeleted || []).map(function (m) { return m.name; }), blockedText: function (t) { return 'Учасника «' + t + '» видалено, додати не можна. Відновити — у розділі Учасники'; }, options: D.members.filter(function (m) { return m.status === 'pub'; }).map(function (m) { return m.name; }), ph: 'Оберіть учасників', noneText: 'Нічого не знайдено серед опублікованих учасників', hint: 'Лише опубліковані учасники. На сайті — посилання на Club', value: v('people', []).map(memberName) },
           { id: 'others', type: 'multi', label: 'Інші люди', allowNew: true, itemMax: 80, newText: 'Додати', ph: 'Введіть імʼя і натисніть Enter', emptyHint: 'Введіть імʼя, щоб додати', hint: 'Для людей, яких немає серед учасників', value: v('others', []).slice() }
         ] },
         { title: 'Локація', fields: [

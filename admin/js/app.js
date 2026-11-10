@@ -9,7 +9,8 @@
 
   // Розділи меню: [ключ маршруту, назва]. У прототипі лише ті розділи, які реально працюють.
   var GROUPS = [
-    ['Контент', [['news', 'Новини'], ['tags', 'Теги']]]
+    ['Контент', [['news', 'Новини'], ['tags', 'Теги']]],
+    ['Люди', [['members', 'Учасники']]]
   ];
 
   A.saveError = function (e) {
@@ -83,14 +84,17 @@
     var parts = hash.replace(/^#\/?/, '').split('/').map(function (x) { try { return decodeURIComponent(x); } catch (e) { return x; } });
     var sec = parts[0] || 'news', rec = parts[1];
     var all = []; GROUPS.forEach(function (g) { g[1].forEach(function (it) { all.push(it); }); });
-    var item = all.find(function (it) { return it[0] === (sec === 'news-texts' ? 'news' : sec); });
+    var alias = { 'news-texts': 'news', 'club-texts': 'members' };
+    var item = all.find(function (it) { return it[0] === (alias[sec] || sec); });
     // невідомий або прибраний розділ → Новини
     if (!item) { location.replace('#/news'); return; }
     root.innerHTML = '<div class="app">' + sidebar(item[0]) + '<main class="main" id="main"></main></div>';
     var main = document.getElementById('main');
     var s = A.screens;
     if (sec === 'news-texts') { current = s.newsTexts(main); current = { kind: 'form', ctl: current }; document.title = 'Тексти блоків новин · TAKE HIGH · Адмінка'; window.scrollTo(0, 0); return; }
-    if (item[0] === 'news') current = rec ? s.newsCard(main, rec) : s.news(main);
+    if (sec === 'club-texts') { current = { kind: 'form', ctl: s.clubTexts(main) }; document.title = 'Тексти сторінки Club · TAKE HIGH · Адмінка'; window.scrollTo(0, 0); return; }
+    if (item[0] === 'members') current = rec ? s.memberCard(main, rec) : s.members(main);
+    else if (item[0] === 'news') current = rec ? s.newsCard(main, rec) : s.news(main);
     else if (item[0] === 'tags') current = rec ? s.tagCard(main, rec) : s.tags(main);
     current = current ? { kind: rec ? 'form' : 'list', ctl: current } : null;
     document.title = item[1] + ' · TAKE HIGH · Адмінка';

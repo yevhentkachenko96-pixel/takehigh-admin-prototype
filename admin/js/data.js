@@ -60,7 +60,8 @@
     save: function (entity, id, rec, status, label) {
       return A.commit(function (D) {
         var L = D[entity]; var r = L.find(function (x) { return x.id === id; }); var created = false;
-        if (!r) { r = { id: id }; L.unshift(r); created = true; }
+        // нові учасники — в кінець (порядок створення), інші записи — нагору списку
+        if (!r) { r = { id: id }; if (entity === 'members') L.push(r); else L.unshift(r); created = true; }
         var old = clone(r);
         Object.keys(rec).forEach(function (k) { r[k] = rec[k]; });
         if (status) r.status = status;
@@ -136,6 +137,41 @@
         name = A.tagKey(name); D.tagsDeleted = (D.tagsDeleted || []).filter(function (t) { return t !== name; });
         if (D.tags.indexOf(name) < 0) D.tags.push(name);
         log(D, name, SEC.tags, 'Відновлено'); return name;
+      });
+    },
+    // ручний порядок учасників однієї групи: ids — новий порядок; інші групи лишаються на своїх місцях
+    reorder: function (group, ids, label) {
+      return A.commit(function (D) {
+        var slots = [], rec = {};
+        D.members.forEach(function (m, i) { if (m.group === group) { slots.push(i); rec[m.id] = m; } });
+        if (ids.length !== slots.length) return false;
+        var same = ids.every(function (id, k) { return D.members[slots[k]].id === id; }); if (same) return false;
+        ids.forEach(function (id, k) { D.members[slots[k]] = rec[id]; });
+        log(D, label || group, SEC.members, 'Змінено порядок');
+        return true;
+      });
+    },
+    // видалення учасників: запис ховається з адмінки і сайту, але імʼя лишається в старих новинах;
+    // додати його в нові новини не можна, відновити — створивши учасника з тим самим імʼям
+    memberDelete: function (ids) {
+      return A.commit(function (D) {
+        D.membersDeleted = D.membersDeleted || []; var n = 0;
+        D.members = D.members.filter(function (m) {
+          if (ids.indexOf(m.id) < 0) return true;
+          var used = D.news.filter(function (x) { return (x.people || []).indexOf(m.id) >= 0; }).length;
+          D.membersDeleted.push(Object.assign({}, m, { deleted: A.now() }));
+          log(D, m.name, SEC.members, 'Видалено', A.STATUS[m.status] || '', used ? 'лишився в новинах: ' + used : ''); n++;
+          return false;
+        });
+        return n ? n : false;
+      });
+    },
+    memberRestore: function (id) {
+      return A.commit(function (D) {
+        var L = D.membersDeleted || [], m = L.find(function (x) { return x.id === id; }); if (!m) return false;
+        D.membersDeleted = L.filter(function (x) { return x !== m; });
+        delete m.deleted; m.status = 'draft'; m.changed = A.now(); D.members.push(m);
+        log(D, m.name, SEC.members, 'Відновлено', '', A.STATUS.draft); return m.id;
       });
     },
     // повне видалення записів (у прототипі; на робочому сайті — мʼяке видалення, див. BRD)

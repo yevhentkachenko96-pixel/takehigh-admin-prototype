@@ -24,6 +24,7 @@
         st.photo[f.id] = f.value ? { state: 'done', url: A.img(f.value), name: /^(https?:|data:)/.test(f.value) ? 'Завантажене фото' : f.value + '.jpg' } : { state: 'empty' };
       }
     });
+    var hasCond = fields.some(function (f) { return f.showIf || f.reqIf || f.ratio; });
     var byId = function (id) { return fields.find(function (f) { return f.id === id; }); };
     var val = function (f) { return st.vals[f.id]; };
     function isEmpty(f) {
@@ -33,10 +34,12 @@
       return x == null || String(x).trim() === '';
     }
 
+    function isReq(f) { return !!(f.req || (f.reqIf && f.reqIf(st.vals))); }
     function errorsFor(mode) {
       var E = {}, W = {}; st.errAct = {};
       fields.forEach(function (f) {
         var x = val(f);
+        if (f.showIf && !f.showIf(st.vals)) return;
         if (f.type === 'photo' && st.photo[f.id].state === 'error') { E[f.id] = st.photo[f.id].msg; return; }
         if (f.type === 'photo' && st.photo[f.id].state === 'up') { E[f.id] = 'Дочекайтеся завантаження фото'; return; }
         if (typeof x === 'string' && f.max && x.length > f.max) { E[f.id] = 'Не більше ' + f.max + ' символів'; return; }
@@ -49,7 +52,7 @@
         if (f.inputType === 'email' && x && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)) { E[f.id] = 'Неправильний формат email'; return; }
         if (f.type === 'multi' && f.maxItems && x.length > f.maxItems) { E[f.id] = 'Не більше ' + f.maxItems; return; }
         if (mode !== 'publish') return;
-        if (f.req && isEmpty(f)) { if (cfg.softReq) W[f.id] = 1; else E[f.id] = 'Обовʼязкове поле'; }
+        if (isReq(f) && isEmpty(f)) { if (cfg.softReq) W[f.id] = 1; else E[f.id] = 'Обовʼязкове поле'; }
       });
       return { E: E, W: W };
     }
@@ -60,14 +63,15 @@
     }
     function below(f, err) {
       var ea = err && st.errAct && st.errAct[f.id];
-      return '<div class="below" id="d-' + f.id + '">' + (err ? '<span class="err">' + icon('err', 'i-sm') + esc(err) + (ea ? ' <button class="btn btn-secondary btn-sm" type="button" data-act="err-action" data-f="' + f.id + '">' + esc(ea.label) + '</button>' : '') + '</span>' : (f.hint ? '<span class="hint">' + esc(f.hint) + '</span>' : '')) + counter(f) + '</div>';
+      return '<div class="below" id="d-' + f.id + '">' + (err ? '<span class="err">' + icon('err', 'i-sm') + esc(err) + (ea ? ' <button class="btn btn-secondary btn-sm" type="button" data-act="err-action" data-f="' + f.id + '">' + esc(ea.label) + '</button>' : '') + '</span>' : (f.hint ? '<span class="hint">' + esc(typeof f.hint === 'function' ? f.hint(st.vals) : f.hint) + '</span>' : '')) + counter(f) + '</div>';
     }
 
     function fieldHtml(f, E) {
+      if (f.showIf && !f.showIf(st.vals)) return '';
       var err = E[f.id], x = val(f), inv = err ? ' aria-invalid="true"' : '', dom = 'f-' + f.id, desc = ' aria-describedby="d-' + f.id + '"';
       var cls = 'field' + (f.half ? '' : ' span2') + (err ? ' is-invalid' : '');
       var h = '<div class="' + cls + '" id="fw-' + f.id + '">';
-      h += '<label class="label" for="' + dom + '" id="l-' + f.id + '">' + esc(f.label) + (f.req ? '<span class="req" aria-hidden="true">*</span><span class="sr-only">(обовʼязкове)</span>' : '<span class="opt">необовʼязково</span>') + '</label>';
+      h += '<label class="label" for="' + dom + '" id="l-' + f.id + '">' + esc(f.label) + (isReq(f) ? '<span class="req" aria-hidden="true">*</span><span class="sr-only">(обовʼязкове)</span>' : '<span class="opt">необовʼязково</span>') + '</label>';
       if (f.type === 'text') {
         var inp = '<input class="input" id="' + dom + '" type="' + (f.inputType || 'text') + '" value="' + esc(x) + '" placeholder="' + esc(f.ph || '') + '"' + inv + desc + ' data-f="' + f.id + '">';
         h += f.prefix ? '<div class="prefix-wrap"><span class="prefix">' + esc(f.prefix) + '</span>' + inp + '</div>' : inp;
@@ -99,13 +103,15 @@
       } else if (f.type === 'photo') {
         var p = st.photo[f.id], acc = f.accept || 'image/jpeg,image/png,image/webp', fmt = f.fmt || 'JPG, PNG або WebP · до ' + (f.limit || 10) + ' МБ';
         var fileIn = function (lab, c) { return '<label class="btn btn-secondary btn-sm' + (c || '') + '">' + lab + '<input class="sr-only" id="' + dom + '" type="file" accept="' + acc + '" data-file="' + f.id + '"></label>'; };
+        var rt = f.ratio ? f.ratio(st.vals) : null, pst = rt ? ' style="width:' + (rt[2] ? 96 : Math.round(120 * Math.min(1, rt[0] / rt[1]))) + 'px;height:' + (rt[2] ? 96 : Math.round(120 * Math.min(1, rt[1] / rt[0]))) + 'px' + (rt[2] ? ';border-radius:50%' : '') + '"' : '';
         if (p.state === 'empty') h += '<div class="dz" data-drop="' + f.id + '"><div class="dz-ico">' + icon('up') + '</div><span class="dz-title">Перетягніть файл сюди</span><span class="hint" style="font-size:13px">' + esc(fmt) + '</span>' + fileIn('Обрати файл', ' dz-file') + '</div>';
         else if (p.state === 'up') h += '<div class="upl" aria-live="polite"><span class="thumb t2 upl-prev" aria-hidden="true"></span><div class="upl-body"><span class="upl-name">' + esc(p.name) + '</span><div class="bar" role="progressbar" aria-label="Завантаження файлу"><span style="width:60%"></span></div><span class="hint" style="font-size:12px">Завантаження…</span></div></div>';
-        else if (p.state === 'done') h += '<div class="upl">' + (p.url ? '<img class="upl-prev" src="' + esc(p.url) + '" alt="Прев’ю: ' + esc(p.name) + '">' : '<span class="thumb t3 upl-prev" role="img" aria-label="Прев’ю фото"></span>') +
+        else if (p.state === 'done') h += '<div class="upl">' + (p.url ? '<img class="upl-prev" src="' + esc(p.url) + '" alt="Прев’ю: ' + esc(p.name) + '"' + pst + ' data-ratio-f="' + f.id + '">' : '<span class="thumb t3 upl-prev" role="img" aria-label="Прев’ю фото"></span>') +
           '<div class="upl-body"><span class="upl-name">' + esc(p.name) + '</span><span class="hint" style="font-size:12px">' + esc(p.meta || 'Фото') + '</span><div class="upl-actions">' + fileIn('Замінити') +
           '<button class="btn btn-ghost btn-sm btn-danger-text" type="button" data-act="photo-x" data-f="' + f.id + '">Видалити</button></div></div></div>';
         else h += '<div class="upl upl-err"><div class="dz-ico" style="background:#fff;color:#B42318">' + icon('err') + '</div><div class="upl-body"><span class="upl-name">' + esc(p.name) + '</span><span class="hint" style="font-size:12px">' + esc(p.meta || '') + ' · не завантажено</span>' + (p.msg ? '<span class="err" role="alert">' + icon('err', 'i-sm') + esc(p.msg) + '</span>' : '') + '</div>' + fileIn('Обрати інший файл') + '</div>';
-        h += '<div class="below" id="d-' + f.id + '">' + (err ? '<span class="err">' + icon('err', 'i-sm') + esc(err) + '</span>' : '') + '</div>';
+        var rw = rt && p.state === 'done' && p.dims ? ratioWarn(rt, p.dims) : '';
+        h += '<div class="below" id="d-' + f.id + '">' + (err ? '<span class="err">' + icon('err', 'i-sm') + esc(err) + '</span>' : (rw ? '<span class="warn-txt">' + icon('warn', 'i-sm') + esc(rw) + '</span>' : (f.hint ? '<span class="hint">' + esc(typeof f.hint === 'function' ? f.hint(st.vals) : f.hint) + '</span>' : ''))) + '</div>';
         if (f.author !== false || f.caption) {
           h += '<div class="photo-sub">';
           if (f.author !== false) h += sub(f.id + '_author', 'Автор фото', 'Людина, яка зробила фото', 80);
@@ -121,6 +127,13 @@
       }
       h += below(f, err);
       return h + '</div>';
+    }
+    // попередження, якщо пропорція фото не така, як на сайті (сайт обріже фото)
+    function ratioWarn(rt, d) {
+      var want = rt[0] / rt[1], got = d.w / d.h; if (Math.abs(got - want) / want <= 0.03) return '';
+      var g = function (a, b) { return b ? g(b, a % b) : a; }, k = g(d.w, d.h), sw = d.w / k, sh = d.h / k;
+      var shown = sw <= 40 && sh <= 40 ? sw + ':' + sh : (Math.round(got * 100) / 100 + ':1');
+      return 'Пропорція фото ' + shown + ', на сайті ' + rt[0] + ':' + rt[1] + (rt[2] ? ' (коло)' : '') + '. Сайт обріже фото, як у прев’ю. Можна зберегти так або завантажити інше.';
     }
     function sub(id, label, ph, max) {
       var x = st.vals[id] || '';
@@ -152,6 +165,12 @@
       h += '</div></div></div>';
       root.innerHTML = h;
       mountMaps();
+      // розміри фото для перевірки пропорції
+      Array.prototype.forEach.call(root.querySelectorAll('img[data-ratio-f]'), function (im) {
+        var pf = st.photo[im.getAttribute('data-ratio-f')]; if (!pf || pf.dims) return;
+        var done = function () { if (im.naturalWidth && !pf.dims) { pf.dims = { w: im.naturalWidth, h: im.naturalHeight }; render(); } };
+        if (im.complete) setTimeout(done, 0); else im.addEventListener('load', done);
+      });
       scrollActive();
       if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus(); try { if (selS != null) el.setSelectionRange(selS, selE); } catch (e) {} } }
     }
@@ -277,9 +296,11 @@
       var out = (f.options || []).filter(function (o) { return x.indexOf(o) < 0 && (!low || o.toLowerCase().indexOf(low) >= 0); })
         .sort(function (a, b) { return a.localeCompare(b, 'uk'); }).map(function (o) { return { v: o }; });
       var exact = (f.options || []).concat(x).some(function (o) { return o.toLowerCase() === low; });
+      // видалені значення: показуємо неактивними рядками, додати їх не можна
+      var blk = low ? (f.blocked || []).filter(function (o) { return o.toLowerCase().indexOf(low) >= 0 && x.indexOf(o) < 0; }) : [];
+      blk.forEach(function (o) { out.push({ v: o, blocked: true }); });
       var blocked = low && (f.blocked || []).some(function (o) { return o.toLowerCase() === low; });
-      if (blocked && x.indexOf(f.lower ? low : q) < 0) out.push({ v: f.lower ? low : q, blocked: true });
-      else if (f.allowNew && low && !exact && q.length <= (f.itemMax || 80)) out.push({ v: f.lower ? low : q, isNew: true });
+      if (!blocked && f.allowNew && low && !exact && q.length <= (f.itemMax || 80)) out.push({ v: f.lower ? low : q, isNew: true });
       return out;
     }
     function emptyText(f) {
@@ -325,7 +346,7 @@
     root.onchange = function (e) {
       var t = e.target;
       if (t.dataset.file) { var f = byId(t.dataset.file); if (t.files && t.files[0]) setPhotoFile(f, t.files[0]); return; }
-      if (t.dataset.f && (t.tagName === 'SELECT' || t.type === 'date')) { st.vals[t.dataset.f] = t.value; if (st.tried) render(); return; }
+      if (t.dataset.f && (t.tagName === 'SELECT' || t.type === 'date')) { st.vals[t.dataset.f] = t.value; if (st.tried || hasCond) render(); return; }
       // після переходу фокусу в інше поле: перемальовуємо, коли фокус уже там, щоб його не загубити
       if (st.tried && (t.dataset.f || t.dataset.sub)) setTimeout(render, 0);
     };

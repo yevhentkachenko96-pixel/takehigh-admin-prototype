@@ -26,6 +26,7 @@
     list: '<path d="M4 7h16M4 12h16M4 17h10"/>',
     ext: '<path d="M14 5h5v5M19 5l-8 8M10 6H5v13h13v-5"/>',
     search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>',
+    grip: '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>',
     down: '<path d="M7 10l5 5 5-5"/>',
     lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>'
   };
