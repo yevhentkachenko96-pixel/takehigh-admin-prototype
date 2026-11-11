@@ -56,6 +56,7 @@
   // small: мініатюра для списків (менші файли — швидше відкриваються списки)
   A.img = function (k, small) {
     if (!k || typeof k !== 'string') return null;
+    if (/^v3:/.test(k)) return '../site/img/v3/' + k.slice(3);
     var lk = window.THStorage && THStorage.localPhoto(k); if (lk) k = lk;
     if (/^(data:|blob:|https?:)/.test(k)) { var th = small !== false && A.data && A.data.thumbs && A.data.thumbs[k]; return th || k; }
     var t = window.TH_THUMBS || {};

@@ -9,7 +9,7 @@
   A.rev = null;
   A.stale = false;
 
-  var SEC = { news: 'Новини', tags: 'Теги', events: 'Події', films: 'Фільми', results: 'Результати', members: 'Учасники', partners: 'Партнери', cases: 'Кейси', products: 'Merch', collections: 'Merch', pages: 'Сторінки', legal: 'Юридичні сторінки', settings: 'Загальні налаштування' };
+  var SEC = { news: 'Новини', tags: 'Теги', events: 'Події', films: 'Фільми', results: 'Результати', members: 'Учасники', partners: 'Партнери', cases: 'Кейси', sessions: 'Сесії', products: 'Merch', collections: 'Merch', pages: 'Сторінки', legal: 'Юридичні сторінки', settings: 'Загальні налаштування' };
   A.SEC = SEC;
 
   A.load = function () {
@@ -303,6 +303,8 @@
     var P0 = D0.partners || [], isPid = function (v) { return !v || P0.concat(D0.partnersDeleted || []).some(function (p) { return p.id === v; }); };
     if (P0.some(function (p) { return (p.status === 'pub' && p.perm !== true) || !String(p.role || '').trim(); })) need = true;
     if ((D0.news || []).concat(D0.cases || []).some(function (x) { return !isPid(x.partner); })) need = true;
+    // 6. «Розділ» → «Категорія»; 7. розділ «Сесії» (Real sessions на Home)
+    if ((D0.news || []).some(function (n) { return !n.cat; }) || !Array.isArray(D0.sessions)) need = true;
     if (!need) return Promise.resolve(0);
     return A.commit(function (D) {
       var n = 0;
@@ -332,6 +334,14 @@
       });
       // 3. старі точки «на малюнку» не є координатами
       (D.news || []).forEach(function (x) { if (x.point && !A.isPoint(x.point)) { x.point = null; log(D, nameOf(x), SEC.news, 'Скинуто точку на карті (нова карта)'); n++; } });
+      // 6. категорія новини з колишніх «Розділ» і «Тип» (правило переходу — у shared/home-schema.js)
+      (D.news || []).forEach(function (x) {
+        if (x.cat) return;
+        x.cat = window.TH_CAT_OF(x);
+        log(D, nameOf(x), SEC.news, 'Категорію визначено з розділу і типу', [x.section, x.type].filter(Boolean).join(' / '), x.cat); n++;
+      });
+      // 7. розділ «Сесії»: стартові картки з прототипу Home V3
+      if (!Array.isArray(D.sessions)) { D.sessions = clone(window.TH_DEFAULT.sessions || []); log(D, 'Real sessions', SEC.sessions, 'Створено розділ зі стартовими картками: ' + D.sessions.length); n++; }
       return n;
     });
   };

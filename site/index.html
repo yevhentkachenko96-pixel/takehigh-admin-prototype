@@ -13,156 +13,252 @@
 <script>window.TH_POLL_MS = 30000;</script>
 <script src="../shared/th-data.js?v=__V__"></script>
 <script src="../shared/photo-map.js?v=__V__"></script>
+<script src="../shared/home-schema.js?v=__V__"></script>
 <script src="../shared/storage.js?v=__V__"></script>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
+
 <header class="top" id="top">
   <div class="wrap">
-    <nav class="hnav left" aria-label="Main, part 1"><a href="#/home/performance">Performance</a><a href="#/club">Club</a><a href="#/home/media">Media</a></nav>
-    <button class="menu-btn" id="burger" aria-expanded="false" aria-controls="mmenu"><i aria-hidden="true"></i><span>Menu</span></button>
+    <nav class="hnav left" aria-label="Main, part 1"><a href="#/club">Club</a><a href="#/home/what">What we do</a><a href="#/home/how">How we work</a><a href="#/home/access">Experience</a></nav>
+    <button class="menu-btn" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="mmenu"><i aria-hidden="true"></i></button>
     <a class="hbadge" href="#/" aria-label="TAKE HIGH Big Wave Surf Club, home"></a>
-    <nav class="hnav right" aria-label="Main, part 2"><a href="#/partnerships">Partnerships</a><a href="#/home/access">Access</a><a href="#/news">News</a><a href="#/home/merch">Merch</a></nav>
+    <nav class="hnav right" aria-label="Main, part 2"><a href="#/news">Updates</a><a href="#/partnerships">Partnerships</a><a href="#/home/merch">Merch</a><a class="hcta" href="#/home/apply">Contact</a></nav>
+    <a class="hcta mcta" href="#/home/apply">Contact</a>
   </div>
 </header>
 
 <div class="mmenu" id="mmenu" role="dialog" aria-modal="true" aria-label="Menu" hidden>
-  <div class="wrap bar"><a class="hbadge" href="#/" aria-label="TAKE HIGH, home"></a><span></span><button class="menu-btn" id="mclose" style="justify-self:end">Close</button></div>
-  <nav class="wrap" aria-label="Main"><a href="#/home/performance">Performance</a><a href="#/club">Club</a><a href="#/home/media">Media</a><a href="#/partnerships">Partnerships</a><a href="#/home/access">Access</a><a href="#/news">News</a><a href="#/home/merch">Merch</a></nav>
-  <div class="wrap mfoot small"><a href="https://www.instagram.com/takehighclub" target="_blank" rel="noopener">Instagram<svg class="xarr" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12L12 4M6 4h6v6"/></svg></a><a href="https://www.youtube.com/@takehighclub" target="_blank" rel="noopener">YouTube<svg class="xarr" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12L12 4M6 4h6v6"/></svg></a></div>
+  <div class="wrap bar"><button class="menu-btn" id="mclose" aria-label="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button><a class="hbadge" href="#/" aria-label="TAKE HIGH, home"></a><span></span></div>
+  <nav class="wrap" aria-label="Main"><a href="#/club">Club</a><a href="#/home/what">What we do</a><a href="#/home/how">How we work</a><a href="#/home/access">Experience</a><a href="#/news">Updates</a><a href="#/home/sessions">Sessions</a><a href="#/partnerships">Partnerships</a><a href="#/home/apply">Contact</a></nav>
+  <div class="wrap mfoot small"><a class="btn" href="#/home/apply" data-topic="Nazaré Experience">Request an Experience <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><div class="msoc"><a href="https://www.instagram.com/takehighclub" target="_blank" rel="noopener">Instagram<svg class="xarr" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12L12 4M6 4h6v6"/></svg></a><a href="https://www.youtube.com/@takehighclub" target="_blank" rel="noopener">YouTube<svg class="xarr" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12L12 4M6 4h6v6"/></svg></a></div></div>
 </div>
 
+<div id="main" tabindex="-1"></div>
 <main id="home" class="view">
 
-<!-- 1 Hero: one philosophy line, no CTA -->
-<section class="panel hero" aria-label="TAKE HIGH">
-  <div class="ph"><img src="img/2541f6fe7387.jpg" alt="TAKE HIGH athlete riding a big wave at Nazaré"></div>
-  <div class="copy"><div class="wrap"><span class="label rv">Ukrainian big-wave surf team · Nazaré, Portugal</span><h1 class="story-title rv">Performance shaped by nature.</h1></div></div>
-  <span class="credit">Photo: [Credit]</span>
+<!-- 1 Hero: full-screen video and one line -->
+<section class="hero" aria-label="TAKE HIGH Big Wave Surf Club">
+  <video id="hv" autoplay muted loop playsinline preload="auto" poster="img/v3/8ab0d37d8a.jpg" data-poster="heroPoster" aria-hidden="true"><source src="img/v3/67e179ff45.mp4" type="video/mp4"></video>
+  <div class="hero-copy"><div class="wrap">
+    <h1 data-t="heroTitle">Big wave surf club</h1>
+    <button class="vbtn" id="vbtn" aria-label="Pause background video"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="vicon" d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+  </div></div>
 </section>
 
-<!-- 2 Who we are: editorial split, photo bleeds to the left edge, copy on the right -->
-<section class="who2" id="club">
-  <figure class="who2-pic"><img src="img/2b808f6bc82d.jpg" alt="TAKE HIGH team in front of the club wall, Nazaré" loading="lazy"><figcaption>Nazaré · Photo: Alex Sousa</figcaption></figure>
-  <div class="who2-copy">
-    <span class="label rv">Who we are</span>
-    <h2 class="who-title rv">A Ukrainian big-wave team at Nazaré since [year]</h2>
-    <p class="body rv">TAKE HIGH is a surf team. We ride and train in Nazaré, Portugal, and run a second training base in Indonesia. On big days, every ride is a crew effort: athletes, jet ski pilots, spotters and rescue work as one unit.</p>
-    <div class="facts rv"><div><b>Nazaré</b><span>Main base</span></div><div><b>Indonesia</b><span>Training base</span></div><div><b id="crew-count">6</b><span>Crew</span></div></div>
-    <a class="pillbtn light big rv" href="#/club">Meet the team <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
-  </div>
-</section>
-
-<!-- 3 Real sessions: carousel -->
-<section class="rail-sec" id="performance">
-  <div class="wrap rail-head">
-    <div><span class="label rv">Real sessions</span><h2 class="story-title rv">From the lineup</h2></div>
-    <div class="ctrl rv"><a class="pillbtn light big rail-cta" href="#/home/performance">Explore Performance <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><button class="arrowbtn" data-rail="r1" data-dir="-1" aria-label="Previous"><svg viewBox="0 0 16 16"><path d="M14 8H3M7 4L3 8l4 4"/></svg></button><button class="arrowbtn" data-rail="r1" data-dir="1" aria-label="Next"><svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></button></div>
-  </div>
-  <div class="rail" id="r1">
-    <a class="rcard rv" href="#/home/performance"><div class="ph"><img src="img/e6a52f3b1184.jpg" alt="Surfer dropping down a big wave at Nazaré" loading="lazy"><span class="tagp">[Status]</span></div><span class="meta">Nazaré · [Date]</span><h3 class="h3">Dropping in at Nazaré</h3></a>
-    <a class="rcard rv" href="#/home/performance"><div class="ph"><img src="img/c484812c1f5d.jpg" alt="Jet ski pilot in front of a breaking wave" loading="lazy"><span class="tagp">[Status]</span></div><span class="meta">Nazaré · [Date]</span><h3 class="h3">The pilot’s view</h3></a>
-    <a class="rcard rv" href="#/home/performance"><div class="ph"><img src="img/edbec12e8fb3.jpg" alt="Surfer riding under the lip of a big wave" loading="lazy"><span class="tagp">[Status]</span></div><span class="meta">Nazaré · [Date]</span><h3 class="h3">Under the lip</h3></a>
-    <a class="rcard rv" href="#/home/performance"><div class="ph"><img src="img/afb0b7a0eba9.jpg" alt="Big-wave session at Nazaré" loading="lazy"><span class="tagp">[Status]</span></div><span class="meta">Nazaré · [Date]</span><h3 class="h3">A heavy day at Nazaré</h3></a>
-    <a class="rcard rv" href="#/home/performance"><div class="ph"><img src="img/44d462cd5ac4.jpg" alt="Crew on the water during a session" loading="lazy"><span class="tagp">[Status]</span></div><span class="meta">Nazaré · [Date]</span><h3 class="h3">Crew on the water</h3></a>
-    <a class="rcard rv" href="#/home/performance"><div class="ph"><img src="img/e504875e59e4.jpg" alt="Surfer on a big wave at Nazaré" loading="lazy"><span class="tagp">[Status]</span></div><span class="meta">Nazaré · [Date]</span><h3 class="h3">First swell of the season</h3></a>
-  </div>
-</section>
-
-<!-- 4 Season + preparation: sticky photo, chapters scroll past -->
-<section class="prep-sec" id="prep">
-  <div class="prep">
-    <div class="prep-media"><div class="ph multi">
-      <img class="on" src="img/9aad53a83cb0.jpg" alt="Two athletes walking with boards beside the team truck at sunset" loading="lazy">
-      <img src="img/af4b3e379dd0.jpg" alt="Crew member working on a jet ski in the garage" loading="lazy">
-      <img src="img/d1117370e485.jpg" alt="Two athletes with boards on the beach" loading="lazy">
-      <img src="img/cb9204fcb55f.jpg" alt="Wide view of a big wave at Nazaré with a surfer" loading="lazy">
-    </div><span class="credit">Photo: Alex Sousa</span></div>
-    <div class="prep-text">
-      <div class="prep-intro"><span class="label rv">Season + preparation</span><h2 class="story-title rv">How the crew gets ready</h2></div>
-      <div class="chap" data-i="0"><span class="num">01</span><h3>Crew work</h3><p class="body">Pilots, spotters and rescue train as one unit.</p></div>
-      <div class="chap" data-i="1"><span class="num">02</span><h3>Equipment</h3><p class="body">Jet skis, sleds and boards are checked before every session.</p></div>
-      <div class="chap" data-i="2"><span class="num">03</span><h3>Training &amp; readiness</h3><p class="body">Training blocks on land and on the water, and readiness checks before every session.</p></div>
-      <div class="chap" data-i="3"><span class="num">04</span><h3>Objectives</h3><p class="body">Each season starts with clear goals: more hours on big days, faster crew rotation and safer rescues.</p><div class="prep-end"><a class="pillbtn light big" href="#/home/performance">Explore Performance <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a></div></div>
-    </div>
-  </div>
-</section>
-
-<!-- 5 Latest: light editorial grid, 1 featured + 3 recent -->
-<section class="latest-sec" id="latest">
+<!-- 2 Who we are -->
+<section class="who on-green" id="who">
   <div class="wrap">
-    <div class="latest-head"><div><span class="label rv" id="hl-label">News</span><h2 class="story-title rv" id="hl-title">Updates from the team</h2></div><a class="pillbtn dark rv" href="#/news"><span id="hl-cta">View all updates</span> <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a></div>
-    <div class="bento" id="home-latest" aria-live="polite"></div>
+    <div class="who-head">
+      <div><span class="label" data-t="whoLabel">Who we are</span><h2 class="title" data-t="whoTitle">A big-wave team from Ukraine, based in Nazaré</h2></div>
+      <p class="lead" data-t="whoLead">TAKE HIGH is a big-wave surf club. Athletes, Jet Ski pilots and a safety team work as one crew on some of the biggest waves on Earth.</p>
+    </div>
+    <div class="who-cards" id="whoCards">
+      <a class="wcard" href="#/club"><img data-img="who1Img" src="img/v3/9509da4ffe.jpg" alt="Surfer dropping down a giant wave at Nazaré" loading="lazy"><div class="wcap"><span class="kick" data-t="who1Kick">Main base · Portugal</span><b data-t="who1Title">Nazaré</b><p data-t="who1Text">The biggest surfed waves in the world. The team lives and works here all winter.</p><span class="go"><span data-t="who1Go">Explore Nazaré</span> <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a>
+      <a class="wcard" href="#/club"><img data-img="who2Img" src="img/v3/05f750be6c.jpg" alt="Four team members walking along a beach in Indonesia with boards" loading="lazy"><div class="wcap"><span class="kick" data-t="who2Kick">Training base</span><b data-t="who2Title">Indonesia</b><p data-t="who2Text">Warm water and steady waves. The team trains here between big-wave seasons.</p><span class="go"><span data-t="who2Go">Explore Indonesia</span> <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a>
+      <a class="wcard" href="#/club"><img data-img="who3Img" src="img/v3/8bfd06c726.jpg" alt="TAKE HIGH team in front of the club wall in Nazaré" loading="lazy"><div class="wcap"><span class="kick" data-t="who3Kick">The people</span><b data-t="who3Title">Crew</b><p data-t="who3Text">Athletes, Jet Ski pilots and a safety team. One unit on and off the water.</p><span class="go"><span data-t="who3Go">Meet the crew</span> <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a>
+    </div>
+    <div class="dots" id="whoDots" aria-label="Choose a card"><button aria-label="Nazaré" aria-current="true"></button><button aria-label="Indonesia"></button><button aria-label="Crew"></button></div>
   </div>
 </section>
 
-<!-- 6 Media / film: streaming title page (backdrop, title treatment, metadata, synopsis, primary play action, then a row) -->
-<section class="stream" id="media">
-  <div class="sbd"><img src="img/da68cd2e84bc.jpg" alt="Jet ski in front of a breaking wave at Nazaré" loading="lazy"></div>
-  <div class="wrap sinfo">
-    <span class="label rv">Media · Documentary</span>
-    <h2 class="stitle rv">Take High</h2>
-    <div class="smeta rv"><span>Documentary</span><span>Big-wave surfing</span><span>Nazaré · Indonesia</span></div>
-    <p class="body rv">A documentary about the team, the work around the waves and the people behind it.</p>
-    <div class="sbtns rv">
-      <a class="sbtn play" href="#/home/media"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M320-200v-560l440 280-440 280Z"/></svg>Film page</a>
-      <a class="sbtn more" href="#/news?section=Media">Explore our stories</a>
+<!-- 3 What we do -->
+<section class="what light" id="what">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="label" data-t="whatLabel">What we do</span><h2 class="title" data-t="whatTitle">Big waves at the core, and many ways in</h2></div>
+      <p class="lead" data-t="whatLead">Choose what fits you: train with the team, grow as an athlete or pilot, or come to Nazaré as a guest.</p>
+    </div>
+    <div class="wtabs" role="tablist" aria-label="Who it is for"><button class="wtab" role="tab" id="wt-guests" aria-controls="wp-guests" aria-selected="true" tabindex="0" data-t="what1Tab">Guests and companies</button><button class="wtab" role="tab" id="wt-athletes" aria-controls="wp-athletes" aria-selected="false" tabindex="-1" data-t="what2Tab">Athletes and pilots</button><button class="wtab" role="tab" id="wt-partners" aria-controls="wp-partners" aria-selected="false" tabindex="-1" data-t="what3Tab">Partners and fans</button></div>
+    <div class="wcards" role="tabpanel" id="wp-guests" aria-labelledby="wt-guests"><a class="dcard" href="#/home/access"><div class="ph"><img data-img="what11Img" src="img/v3/72e462094e.jpg" alt="Crew on a Jet Ski below the Nazaré cliff" loading="lazy"></div><div class="dbody"><span class="dnum">01</span><h3 data-t="what11Title">Nazaré Experience</h3><p data-t="what11Text">A day with the team for 1–3 people or a small private group.</p></div><div class="dfoot"><span class="dgo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a><a class="dcard" href="#/home/corporate"><div class="ph"><img data-img="what12Img" src="img/v3/3298800892.jpg" alt="The team and guests at the Indonesia base" loading="lazy"></div><div class="dbody"><span class="dnum">02</span><h3 data-t="what12Title">Team building</h3><p data-t="what12Text">Bring your team to Nazaré and spend a day with TAKE HIGH.</p></div><div class="dfoot"><span class="dgo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a><a class="dcard" href="#/home/corporate"><div class="ph"><img data-img="what13Img" src="img/v3/91385d56d6.jpg" alt="Three team members in club tracksuits" loading="lazy"></div><div class="dbody"><span class="dnum">03</span><h3 data-t="what13Title">Corporate events</h3><p data-t="what13Text">Private and company events with the team, small or large.</p></div><div class="dfoot"><span class="dgo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a></div>
+    <div class="wcards" role="tabpanel" id="wp-athletes" aria-labelledby="wt-athletes" hidden><a class="dcard" href="#/home/how"><div class="ph"><img data-img="what21Img" src="img/v3/02c4864223.jpg" alt="Two athletes with boards on the beach" loading="lazy"></div><div class="dbody"><span class="dnum">01</span><h3 data-t="what21Title">Train with the team</h3><p data-t="what21Text">Training blocks at the bases in Nazaré and Indonesia.</p></div><div class="dfoot"><span class="dgo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a><a class="dcard" href="#/home/how"><div class="ph"><img data-img="what22Img" src="img/v3/8028e13c08.jpg" alt="Surfer riding under the lip of a big wave" loading="lazy"></div><div class="dbody"><span class="dnum">02</span><h3 data-t="what22Title">Surfer development</h3><p data-t="what22Text">A clear path from your first big days to competing.</p></div><div class="dfoot"><span class="dgo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a><a class="dcard" href="#/home/how"><div class="ph"><img data-img="what23Img" src="img/v3/3a26644634.jpg" alt="Pilot and surfer on a Jet Ski with the rescue sled" loading="lazy"></div><div class="dbody"><span class="dnum">03</span><h3 data-t="what23Title">Pilot development</h3><p data-t="what23Text">Learn to tow surfers in and pick them up safely.</p></div><div class="dfoot"><span class="dgo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a></div>
+    <div class="wcards" role="tabpanel" id="wp-partners" aria-labelledby="wt-partners" hidden><a class="dcard" href="#/partnerships"><div class="ph"><img data-img="what31Img" src="img/v3/117f2c6563.jpg" alt="Crew preparing Jet Skis in the harbour" loading="lazy"></div><div class="dbody"><span class="dnum">01</span><h3 data-t="what31Title">Partner with us</h3><p data-t="what31Text">Equipment, media, travel or support for the athletes.</p></div><div class="dfoot"><span class="dgo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a><a class="dcard" href="#/home/follow"><div class="ph"><img data-img="what32Img" src="img/v3/2535f99f89.jpg" alt="Back of a TAKE HIGH club jacket" loading="lazy"></div><div class="dbody"><span class="dnum">02</span><h3 data-t="what32Title">Follow the updates</h3><p data-t="what32Text">News, sessions and the film, straight to your email.</p></div><div class="dfoot"><span class="dgo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a><a class="dcard" href="#/home/apply" data-topic="General Contact"><div class="ph"><img data-img="what33Img" src="img/v3/6398463e5f.jpg" alt="Team members in TAKE HIGH jerseys" loading="lazy"></div><div class="dbody"><span class="dnum">03</span><h3 data-t="what33Title">Talk to the team</h3><p data-t="what33Text">Ask us anything. We reply by email.</p></div><div class="dfoot"><span class="dgo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span></div></a></div>
+  </div>
+</section>
+
+<!-- 4 How we work -->
+<section class="how" id="how">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="label" data-t="howLabel">How we work</span><h2 class="title" data-t="howTitle">From the first training to the last wave</h2></div>
+      <p class="lead" data-t="howLead">A big-wave session lasts a few hours. Getting ready for it takes months. Here is how the team works, step by step.</p>
+    </div>
+    <div class="roles">
+      <div class="role"><p data-t="role1Text">Rides the wave. Trains all year to handle its size and speed.</p><b data-t="role1Name">Surfer</b></div>
+      <div class="role"><p data-t="role2Text">Drives the Jet Ski and pulls the surfer into the wave at the right moment and speed.</p><b data-t="role2Name">Pilot</b></div>
+      <div class="role"><p data-t="role3Text">Watches the ocean from the cliff and tells the team by radio which waves are coming.</p><b data-t="role3Name">Spotter</b></div>
+      <div class="role"><p data-t="role4Text">Waits nearby on a second Jet Ski, ready to pick up the surfer after a fall.</p><b data-t="role4Name">Rescue</b></div>
+    </div>
+
+    <ol class="steps" id="howSteps">
+      <li class="step"><div class="step-left"><div class="ph"><img data-img="step1Img" src="img/v3/a84bf25086.jpg" alt="Two athletes with boards walking beside the team truck at sunset"></div><span class="num">01</span><h3 data-t="step1Title">Prepare</h3></div><p data-t="step1Text">Fitness, breath-hold practice and medical checks on land, all year round.</p></li>
+      <li class="step"><div class="step-left"><div class="ph"><img data-img="step2Img" src="img/v3/2771cdc2fd.jpg" alt="Team practising with Jet Skis in calm water"></div><span class="num">02</span><h3 data-t="step2Title">Learn and train together</h3></div><p data-t="step2Text">Surfers and pilots practise pick-ups, hand signals and tow&#8209;ins together in calm water, long before the big days.</p></li>
+      <li class="step"><div class="step-left"><div class="ph"><img data-img="step3Img" src="img/v3/95f58c731d.jpg" alt="Crew member servicing a Jet Ski in the garage"></div><span class="num">03</span><h3 data-t="step3Title">Check the equipment</h3></div><p data-t="step3Text">Boards, life vests, radios, Jet Skis and rescue sleds are checked and repaired before every swell.</p></li>
+      <li class="step"><div class="step-left"><div class="ph"><img data-img="step4Img" src="img/v3/b82eac5eb9.jpg" alt="Team getting ready in the locker room"></div><span class="num">04</span><h3 data-t="step4Title">Plan the session</h3></div><p data-t="step4Text">The team reads the forecast, agrees who does what and goes through the safety plan together.</p></li>
+      <li class="step"><div class="step-left"><div class="ph"><img data-img="step5Img" src="img/v3/154ab2f767.jpg" alt="Two Jet Skis with the crew in front of the Nazaré cliffs"></div><span class="num">05</span><h3 data-t="step5Title">Work on the water</h3></div><p data-t="step5Text">Surfers ride, pilots tow them in, the spotter guides from the cliff and the rescue team stays ready.</p></li>
+      <li class="step"><div class="step-left"><div class="ph"><img data-img="step6Img" src="img/v3/2242c926c8.jpg" alt="Athlete in the club room after a session"></div><span class="num">06</span><h3 data-t="step6Title">Review</h3></div><p data-t="step6Text">After the session the team watches the footage and talks through what worked and what to change. This talk is called a debrief.</p></li>
+    </ol>
+    <button type="button" class="steps-more" aria-expanded="false" aria-controls="howSteps"><span>Show all 6 steps</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
+
+    <span class="label kit-label" data-t="kitLabel">The kit</span>
+    <div class="kit">
+      <div class="krow"><div class="ph"><img data-img="kit1Img" src="img/v3/1082d593fe.jpg" alt="Jet Ski with the TAKE HIGH rescue sled in the water" loading="lazy"></div><div class="kright"><b data-t="kit1Title">Jet Ski</b><p data-t="kit1Text">A small, fast water motorbike. The team uses it to pull surfers into waves too fast to catch by paddling, and to get them out of danger.</p><div class="kuse"><span>Used by</span><ul data-tl="kit1Used"><li>Pilot</li><li>Rescue</li></ul></div></div></div>
+      <div class="krow"><div class="ph"><img data-img="kit2Img" src="img/v3/75b905a037.jpg" alt="Rescue sled fixed to the back of a Jet Ski" loading="lazy"></div><div class="kright"><b data-t="kit2Title">Rescue sled</b><p data-t="kit2Text">A soft, flat platform fixed to the back of the Jet Ski. After a fall the surfer grabs it and lies on it, and the pilot drives them away from the breaking waves.</p><div class="kuse"><span>Used by</span><ul data-tl="kit2Used"><li>Surfer</li><li>Rescue</li></ul></div></div></div>
     </div>
   </div>
-  <span class="credit">Photo: [Credit]</span>
-  <div class="wrap srow-wrap">
-    <span class="label srow-label rv" id="hm-label">More from Media</span>
-    <div class="srow" id="home-media"></div>
+</section>
+
+<!-- 5 Access to the team: Nazaré Experience, then Corporate Events -->
+<section class="access on-green" id="access">
+  <div class="wrap">
+    <div class="head"><div><span class="label" data-t="accLabel">Access to the team</span><h2 class="title" data-t="accTitle">Come closer to big waves</h2></div></div>
+    <div class="exps">
+    <div class="exp">
+      <div class="ph"><img data-img="expImg" src="img/v3/72e462094e.jpg" alt="Crew on a Jet Ski below the Nazaré cliff" loading="lazy"></div>
+      <div class="exp-copy">
+        <span class="eyebrow" data-t="expEyebrow">1–3 people or a small private group · Nazaré</span>
+        <h3 class="exp-title" data-t="expTitle">Nazaré Experience</h3>
+        <p class="lead" data-t="expLead">Spend time with TAKE HIGH in Nazaré. Meet the team, get a safety briefing, see the equipment and how the crew prepares, and get closer to the world of big waves than the shore allows.</p>
+        <a class="btn xbtn" href="#/home/apply" data-topic="Nazaré Experience"><span data-t="expBtn">Request your Experience</span> <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+        <p class="note" data-t="expNote">If the weather, the ocean and safety allow, it can include the lighthouse, the route between the cliffs, small or big waves, a Jet Ski ride or the rescue sled. Nothing on the water is guaranteed; we agree the plan with you before the day.</p>
+      </div>
+    </div>
+
+    <div class="exp corp" id="corporate">
+      <div class="exp-copy">
+        <span class="eyebrow" data-t="corpEyebrow">Companies and private groups · Nazaré</span>
+        <h3 class="exp-title" data-t="corpTitle">Corporate Events</h3>
+        <p class="lead" data-t="corpLead">Team building and private events with TAKE HIGH, for small and large groups. Meet the team, see the Jet Skis and equipment, hear the TAKE HIGH story and enjoy hospitality at the lounge or another venue.</p>
+        <a class="btn xbtn" href="#/home/apply" data-topic="Corporate Event"><span data-t="corpBtn">Plan an event</span> <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+        <p class="note" data-t="corpNote">Agreed Experience elements can be added to the programme. Photos, videos and stories from past events will appear here.</p>
+      </div>
+      <div class="ph"><img data-img="corpImg" src="img/v3/3298800892.jpg" alt="The team and guests together at the Indonesia base" loading="lazy"></div>
+    </div>
+    </div>
   </div>
 </section>
 
-<!-- 7 Partnerships: full-bleed photo, copy left, glass card of partner marks right -->
+<!-- 6 Updates from the team -->
+<section class="updates light" id="updates">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="label" data-t="updLabel">Updates from the team</span><h2 class="title" data-t="updTitle">News from the team</h2></div>
+      <a class="btn solid-green" href="#/news"><span data-t="updBtn">All updates</span> <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+    </div>
+    <div class="chips filters" role="group" aria-label="Filter updates" id="homeChips"></div>
+    <div class="bento" id="homeBento" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- 7 Real sessions -->
+<section class="sessions" id="sessions">
+  <div class="wrap head">
+    <div><span class="label" data-t="sesLabel">Real sessions</span><h2 class="title" data-t="sesTitle">Latest work on the water</h2></div>
+    <div class="ctrl"><a class="btn rail-cta" href="#/news?cat=Sessions"><span data-t="sesBtn">Explore Performance</span> <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><button class="arrowbtn" data-rail="r1" data-dir="-1" aria-label="Previous"><svg viewBox="0 0 16 16"><path d="M14 8H3M7 4L3 8l4 4"/></svg></button><button class="arrowbtn" data-rail="r1" data-dir="1" aria-label="Next"><svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></button></div>
+  </div>
+  <div class="rail" id="r1"></div>
+</section>
+
+<!-- 8 Partnerships -->
 <section class="pfull" id="partners">
-  <div class="ph"><img src="img/45ad19f3eb3e.jpg" alt="" loading="lazy"></div>
+  <div class="bg"><img data-img="parBg" src="img/v3/05b86e8a41.jpg" alt="" loading="lazy"></div>
   <div class="wrap pfull-in">
-    <div class="pcopy">
-      <span class="label rv">Partnerships</span>
-      <h2 class="story-title rv">Work with the team</h2>
-      <p class="body rv">Our partners are part of how we work on the water, from jet skis and equipment to media. Each partnership has a clear purpose for the team and a clear result for the partner.</p>
-      <a class="pillbtn light big rv" href="#/partnerships/enquiry">Discuss a partnership <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+    <div class="head">
+      <div><span class="label" data-t="parLabel">Partnerships</span><h2 class="title" data-t="parTitle">Partner with the team</h2></div>
+      <p class="lead" data-t="parLead">We build every partnership around a real need of the team and a clear goal for the partner.</p>
     </div>
-    <div class="plist rv" aria-label="Partners" id="home-partners"><a class="prow" href="https://wcts.pt" target="_blank" rel="noopener"><span class="plogo"><img src="img/d7cd8f55846f.png" alt="" loading="lazy"></span><span class="pname">Wave Crushers</span><svg class="parr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><a class="prow" href="https://www.instagram.com/westtechjetski" target="_blank" rel="noopener"><span class="plogo"><img src="img/b2fa10be7333.png" alt="" loading="lazy"></span><span class="pname">West Tech Jet Ski</span><svg class="parr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><a class="prow" href="https://www.instagram.com/oceanspiritsurf" target="_blank" rel="noopener"><span class="plogo"><img src="img/6051fd3f92f0.svg" alt="" loading="lazy"></span><span class="pname">Ocean Spirit Surf</span><svg class="parr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><a class="prow" href="https://redherringsnazare.com" target="_blank" rel="noopener"><span class="plogo"><img src="img/9998d1bcb986.svg" alt="" loading="lazy"></span><span class="pname">Red Herrings Nazaré</span><svg class="parr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><a class="prow" href="https://barmaleys.studio" target="_blank" rel="noopener"><span class="plogo"><img src="img/6c5301edd0d2.svg" alt="" loading="lazy"></span><span class="pname">Barmaleys Studio</span><svg class="parr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a></div>
+    <div class="pbody">
+      <div class="pcopy">
+        <ol class="ppoints">
+          <li><span class="n">01</span><b data-t="par1Title">Your role</b><span data-t="par1Text">Equipment, technology, travel, media or support for the athletes.</span></li>
+          <li><span class="n">02</span><b data-t="par2Title">What we create together</b><span data-t="par2Text">Content, events, product tests and stories from the water.</span></li>
+          <li><span class="n">03</span><b data-t="par3Title">How to start</b><span data-t="par3Text">Tell us about your brand and idea. We reply and agree the details together.</span></li>
+        </ol>
+        <a class="btn" href="#/partnerships/enquiry"><span data-t="parBtn">Discuss a partnership</span> <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+      </div>
+      <div class="plist" aria-label="Our partners" id="homePartners"></div>
+    </div>
   </div>
-  <span class="credit">Photo: Alex Sousa</span>
 </section>
 
-<!-- 8 Events / Access -->
-<section class="duo" id="access" aria-label="Events and access">
-  <div class="duo-head wrap"><span class="label">Events / Access · What’s next</span></div>
-  <article class="half">
-    <div class="ph"><img src="img/1c3d990b16ac.jpg" alt="Team in the locker room with boards" loading="lazy"></div>
-    <div class="copy"><span class="label rv">[Date · Time · Timezone] · [City, venue]</span><h3 class="story-title rv">[Event title] — film screening</h3><a class="go rv" href="#/home/access">Follow for updates <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a></div>
-  </article>
-  <article class="half">
-    <div class="ph"><img src="img/e83b761dab77.jpg" alt="Crew on jet skis below the Nazaré cliff" loading="lazy"></div>
-    <div class="copy"><span class="hstat rv">Preparing</span><h3 class="story-title rv">Inside Nazaré</h3><p class="small rv">Inside Nazaré is a personal introduction to TAKE HIGH and the big waves of Nazaré, Portugal: the crew, the jet skis and the days on the water. Follow us for the first dates.</p><a class="go rv" href="#/home/access">Learn more <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a></div>
-  </article>
+<!-- 9 Request form -->
+<section class="apply on-green" id="apply">
+  <div class="wrap apply-grid">
+    <div class="apply-side">
+      <div class="apply-head"><span class="label" data-t="appLabel">Get in touch</span>
+      <h2 class="title" data-t="appTitle">Tell us what interests you</h2>
+      <p class="lead"><span data-t="appLead">Fill in the sentence and send it. The team reads every request and replies by email within [X] working days.</span><span class="info"><button type="button" class="info-btn" aria-label="How we use your details" aria-describedby="infoTip"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7"/><path d="M8 4.5v4.5"/><circle cx="8" cy="11.4" r=".6" fill="currentColor" stroke="none"/></svg></button><span class="info-tip" role="tooltip" id="infoTip" data-t="appTip">By sending, you agree that TAKE HIGH may use these details to reply to you.</span></span></p></div>
+      <div class="apply-alt"><span class="label" data-t="appAltLabel">Prefer to write directly?</span>
+        <a href="mailto:[team email]" data-t="appEmail">[team email]</a>
+        <a href="https://www.instagram.com/takehighclub" target="_blank" rel="noopener">Instagram @takehighclub <svg class="xarr" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12L12 4M6 4h6v6"/></svg></a></div>
+    </div>
+    <div class="fbox">
+      <form id="applyForm" class="sform" novalidate>
+        <p class="sline" data-for="name">Hi, my name is <input name="name" autocomplete="name" placeholder="your name" aria-label="Your name" required>.</p>
+        <p class="sline">I'm interested in <select name="topic" aria-label="Topic">
+            <optgroup label="Visit the team"><option>Nazaré Experience</option><option>Team Building</option><option>Corporate Event</option></optgroup>
+            <optgroup label="Train with the team"><option>Training</option><option>Athlete</option><option>Jet Ski Pilot</option></optgroup>
+            <optgroup label="Other"><option>General Contact</option><option>Follow the Updates</option></optgroup>
+          </select><span data-for="group"> for <select name="group" aria-label="Group size"><option>1 person</option><option>2 people</option><option>3 people</option><option>4–10 people</option><option>11–30 people</option><option>30+ people</option></select></span>.</p>
+        <p class="sline">You can reach me at <input name="email" type="email" autocomplete="email" placeholder="your email" aria-label="Your email" required>.</p>
+        <div class="hp" aria-hidden="true"><label for="af-website">Website</label><input id="af-website" name="website" tabindex="-1" autocomplete="off"></div>
+        <div class="smsg" data-for="msg"><textarea name="message" rows="2" placeholder="Anything else we should know? Dates, ideas, questions (optional)" aria-label="Message"></textarea></div>
+        <p class="ferr" id="applyErr" role="alert" hidden></p>
+        <div class="fsend"><button class="btn" type="submit"><span id="fsendLabel">Send request</span> <svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></button></div>
+      </form>
+      <div class="done" id="applyDone" hidden tabindex="-1">
+        <span class="ok"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+        <h3 data-t="appDoneTitle">Thank you, we have your request</h3>
+        <p class="small" data-t="appDoneText">The team will reply to your email within [X] working days. Meanwhile, follow our updates on Instagram.</p>
+        <div class="cta-row"><button class="btn ghost" type="button" id="applyAgain">Send another request</button><a class="go" href="https://www.instagram.com/takehighclub" target="_blank" rel="noopener">Instagram @takehighclub <svg class="xarr" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12L12 4M6 4h6v6"/></svg></a></div>
+      </div>
+    </div>
+  </div>
 </section>
+
+<!-- 10 Follow the updates -->
+<section class="follow light" id="follow">
+  <div class="wrap">
+    <div class="fpanel">
+      <div class="fpanel-bg"><img data-img="folBg" src="img/v3/e427f632db.jpg" alt="" loading="lazy"></div>
+      <div class="fpanel-in">
+        <div class="follow-copy">
+          <span class="label" data-t="folLabel">Follow the updates</span>
+          <h2 class="title" data-t="folTitle">Not ready to apply? Stay close.</h2>
+          <p class="lead" data-t="folLead">Leave your email and we'll write when something new happens. No spam, unsubscribe any time.</p>
+          <form class="sub" id="subForm" novalidate>
+            <div class="sub-row"><input id="se" type="email" autocomplete="email" placeholder="Your email" aria-label="Your email" required><button class="btn" type="submit">Subscribe</button></div>
+          </form>
+          <p class="sub-err" id="subErr" role="alert" hidden></p>
+          <p class="sub-done" id="subDone" hidden role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span id="subDoneText">You're on the list. Thank you.</span></p>
+        </div>
+        <ul class="ftiles" aria-label="What you'll hear about"><li class="ftile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2c3 .2 5.5 2 5.5 4.8"/></svg><span data-t="tile1">Team news</span></li><li class="ftile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 15c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/><path d="M2 19c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/><path d="M6 11c0-4 3-7 7-7 2 0 3.5.8 4.5 2-3 0-5 2-5 5"/></svg><span data-t="tile2">New sessions</span></li><li class="ftile"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/></svg><span data-t="tile3">The film</span></li><li class="ftile"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span data-t="tile4">Events</span></li><li class="ftile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg><span data-t="tile5">Nazaré Experience</span></li><li class="ftile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/></svg><span data-t="tile6">New formats</span></li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 </main>
 <main id="page" class="view" hidden></main>
 
-<footer class="ft">
+<footer>
   <div class="wrap ft-grid">
     <div class="ft-side">
-      <a class="fbadge big" href="#/" aria-label="TAKE HIGH Big Wave Surf Club emblem, home"></a>
+      <a class="fbadge" href="#/" aria-label="TAKE HIGH Big Wave Surf Club emblem, home"></a>
       <div class="ft-links">
         <a href="https://www.instagram.com/takehighclub" target="_blank" rel="noopener">Instagram<svg class="xarr" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12L12 4M6 4h6v6"/></svg></a>
         <a href="https://www.youtube.com/@takehighclub" target="_blank" rel="noopener">YouTube<svg class="xarr" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12L12 4M6 4h6v6"/></svg></a>
-        <a href="#/">Contact</a>
+        <a href="#/home/apply">Contact</a>
       </div>
     </div>
-    <nav class="ft-nav" aria-label="Footer sections"><a href="#/home/performance"><span>Performance</span><svg class="farr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><a href="#/club"><span>Club</span><svg class="farr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><a href="#/home/media"><span>Media</span><svg class="farr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><a href="#/partnerships"><span>Partnerships</span><svg class="farr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><a href="#/home/access"><span>Access</span><svg class="farr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><a href="#/news"><span>News</span><svg class="farr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a><a href="#/home/merch"><span>Merch</span><svg class="farr" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a></nav>
+    <nav class="ft-nav" aria-label="Footer sections"><a href="#/club">Club</a><a href="#/home/what">What we do</a><a href="#/home/access">Experience</a><a href="#/home/corporate">Corporate</a><a href="#/news">Updates</a><a href="#/news?cat=Media">Media</a><a href="#/partnerships">Partnerships</a><a href="#/home/merch">Merch</a></nav>
   </div>
   <div class="wrap ft-bar">
-    <span class="ft-copy">© 2026 TAKE HIGH</span>
+    <span>© 2026 TAKE HIGH</span>
     <div class="ft-legal"><a href="#/">Privacy</a><a href="#/">Cookies</a><a href="#/">Terms</a></div>
   </div>
 </footer>
-
 <script src="js/site.js?v=__V__"></script>
 </body>
 </html>

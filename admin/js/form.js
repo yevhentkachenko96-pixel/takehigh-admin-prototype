@@ -31,7 +31,7 @@
       if (f.type === 'photo') {
         st.vals[f.id + '_author'] = (f.sub && f.sub.author) || '';
         st.vals[f.id + '_caption'] = (f.sub && f.sub.caption) || '';
-        st.photo[f.id] = f.value ? { state: 'done', url: A.img(f.value), name: /^(https?:|data:)/.test(f.value) ? 'Завантажене фото' : f.value + '.jpg' } : { state: 'empty' };
+        st.photo[f.id] = f.value ? { state: 'done', url: A.img(f.value), name: /^(https?:|data:)/.test(f.value) ? 'Завантажене фото' : /^v3:/.test(f.value) ? 'Фото з прототипу' : f.value + '.jpg' } : { state: 'empty' };
       }
     });
     var hasCond = fields.some(function (f) { return f.showIf || f.reqIf || f.ratio; });
@@ -86,6 +86,8 @@
 
     function fieldHtml(f, E) {
       if (f.showIf && !f.showIf(st.vals)) return '';
+      // підзаголовок усередині вкладки (група полів), не поле
+      if (f.type === 'heading') return '<div class="field span2 sub-head"><h3>' + esc(f.label) + '</h3>' + (f.desc ? '<p class="meta" style="margin:0">' + esc(f.desc) + '</p>' : '') + '</div>';
       var err = E[f.id], x = val(f), inv = err ? ' aria-invalid="true"' : '', dom = 'f-' + f.id, desc = ' aria-describedby="d-' + f.id + '"';
       var cls = 'field' + (f.half ? '' : ' span2') + (err ? ' is-invalid' : '');
       var h = '<div class="' + cls + '" id="fw-' + f.id + '">';

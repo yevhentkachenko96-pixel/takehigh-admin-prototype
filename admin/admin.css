@@ -483,8 +483,9 @@ tr.is-dragging{opacity:.45}
 @media (max-width:760px){.kv{grid-template-columns:1fr;gap:2px}}
 
 /* єдина ширина вмісту для всіх екранів */
-.main > *{width:100%;max-width:1120px;margin-inline:auto}
-.form-wrap{max-width:none}
+.main > *{width:100%;max-width:none;margin-inline:0}
+/* етап 2: списки — на всю ширину від меню до краю; картки і тексти — до 960 px, від меню */
+.form-wrap{max-width:960px}
 .footbar{max-width:none}
 /* телефон: компактна шапка, меню поверх сторінки, щільніші картки списків, нижня панель збереження */
 @media (max-width:760px){
@@ -592,3 +593,30 @@ tr.is-dragging{opacity:.45}
   .eq-filters{flex-wrap:nowrap;overflow-x:auto;margin-inline:-16px;padding-inline:16px}
   .eq-chip{white-space:nowrap}
 }
+
+/* ---------- етап 2 ---------- */
+.group-pick{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.group-pick .label{margin:0}
+.group-pick .select{width:auto;min-width:260px}
+.select-sm{width:auto;min-height:32px;padding:4px 28px 4px 10px;font-size:13px}
+.bulk .select-sm{max-width:220px}
+.pill-new{background:#E7F0E5;color:#183A1E;border-color:#B9D3B4}
+.pill-prog{background:#E8EEF9;color:#1F3F7A;border-color:#BFCDEB}
+.pill-wait{background:#FBF1DC;color:#7A5410;border-color:#EBD3A0}
+.pill-closed{background:#EEEDE7;color:#5C5A50;border-color:#D7D4C7}
+.eq-card{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start;max-width:960px}
+.eq-card .section{margin:0}
+.eq-side-box{display:flex;flex-direction:column;gap:14px;position:sticky;top:16px}
+.eq-msg{white-space:pre-wrap;margin:0;font-size:15px;line-height:1.55}
+.eq-dl{display:grid;grid-template-columns:140px minmax(0,1fr);gap:8px 16px;margin:0}
+.eq-dl dt{color:var(--muted);font-size:13px}
+.eq-dl dd{margin:0;font-size:14px;overflow-wrap:anywhere}
+.eq-hist2{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;font-size:13px}
+.eq-hist2 li{display:flex;flex-direction:column;gap:2px;padding-left:12px;border-left:2px solid var(--border-strong)}
+.eq-hist2 .meta{font-size:12px}
+.home-def{font-size:12px;color:var(--muted)}
+@media (max-width:900px){.eq-card{grid-template-columns:1fr}.eq-side-box{position:static}}
+@media (max-width:760px){.group-pick .select{width:100%;min-width:0}.eq-dl{grid-template-columns:1fr;gap:2px}.eq-dl dd{margin-bottom:8px}.bulk .select-sm{max-width:none;flex:1 1 100%}}
+.sub-head{gap:4px;padding-top:12px;border-top:1px solid var(--border)}
+.sub-head:first-child{padding-top:0;border-top:0}
+.sub-head h3{margin:0;font-size:15px;font-weight:600}

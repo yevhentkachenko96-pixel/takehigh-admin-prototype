@@ -4,7 +4,8 @@
   var A = window.A;
   A.screens = A.screens || {};
 
-  var SECTIONS = ['Performance', 'Club', 'Media', 'Partnerships', 'Access'];
+  // категорії — спільні з сайтом (shared/home-schema.js): фільтр на Home і на сторінці Updates
+  var CATS = window.TH_CATEGORIES;
   var TYPES = ['Session Report', 'Team Update', 'Technical', 'Announcement', 'Feature', 'In Pictures', 'Media Release', 'Partner Update'];
   // учасники, зокрема видалені: імʼя видаленого лишається в старих новинах
   var allMembers = function () { return A.data.members.concat(A.data.membersDeleted || []); };
@@ -13,26 +14,26 @@
 
   A.screens.news = function (root) {
     return A.list(root, {
-      title: 'Новини', addLabel: 'Додати новину', addHref: '#/news/new', extraLabel: 'Тексти блоків на сайті', extraHref: '#/news-texts',
+      title: 'Новини', addLabel: 'Додати новину', addHref: '#/news/new', extraLabel: 'Тексти сторінки Updates', extraHref: '#/news-texts',
       note: 'Зірочка на фото — головна новина. Головною може бути лише одна; зробити головною можна в меню дій рядка. Видалення остаточне.',
       emptyTitle: 'Новин ще немає', emptyText: 'Додайте першу новину. Вона зʼявиться на сайті після публікації.',
       sort: { key: 'date', dir: 'desc' }, markLabel: 'Головна новина', memoryKey: 'news',
       search: { key: 'title', ph: 'Пошук за заголовком' },
       filters: [
-        { key: 'section', label: 'Розділ', options: SECTIONS },
+        { key: 'cat', label: 'Категорія', options: CATS },
         { key: 'type', label: 'Тип', options: TYPES },
         { key: 'status', label: 'Статус', options: ['draft', 'pub'], names: A.STATUS }
       ],
       actions: ['edit', 'makeMain', 'publish', 'unpublish', 'delete'],
       missing: function (id) {
         var n = A.data.news.find(function (x) { return x.id === id; }); if (!n) return [];
-        var F = [['title', 'Заголовок'], ['deck', 'Короткий опис'], ['date', 'Дата'], ['section', 'Розділ'], ['type', 'Тип'], ['img', 'Головне фото'], ['body', 'Текст'], ['source', 'Джерело']];
+        var F = [['title', 'Заголовок'], ['deck', 'Короткий опис'], ['date', 'Дата'], ['cat', 'Категорія'], ['type', 'Тип'], ['img', 'Головне фото'], ['body', 'Текст'], ['source', 'Джерело']];
         return F.filter(function (f) { var v = n[f[0]]; return v == null || String(v).trim() === ''; }).map(function (f) { return f[1]; });
       }, entityLabel: 'новину', entityForms: ['новини', 'новин'],
       cols: [
         { key: 'photo', label: 'Фото', kind: 'thumb', w: '72px' },
         { key: 'title', label: 'Заголовок', kind: 'link', sortable: true },
-        { key: 'section', label: 'Розділ', sortable: true },
+        { key: 'cat', label: 'Категорія', sortable: true, nowrap: true },
         { key: 'type', label: 'Тип', sortable: true, nowrap: true },
         { key: 'date', label: 'Дата', sortable: true, nowrap: true, firstDir: 'desc' },
         { key: 'status', label: 'Статус', kind: 'status', sortable: true },
@@ -41,8 +42,8 @@
       rows: function () {
         return A.data.news.map(function (n, i) {
           return { id: n.id, href: '#/news/' + encodeURIComponent(n.id), status: n.status, img: A.img(n.img), tone: 't' + ((i % 6) + 1), featured: !!n.featured,
-            f: { section: n.section, type: n.type, status: n.status },
-            c: { title: n.title, section: n.section, type: n.type, date: A.fd(n.date) || '[Date]', changed: n.changed || '' },
+            f: { cat: n.cat, type: n.type, status: n.status },
+            c: { title: n.title, cat: n.cat, type: n.type, date: A.fd(n.date) || '[Date]', changed: n.changed || '' },
             s: { date: n.date || '', changed: A.changedKey(n.changed) } };
         });
       },
@@ -66,7 +67,7 @@
           { id: 'slug', type: 'text', label: 'Адреса сторінки', prefix: 'takehigh.com/news/', slug: true, slugFrom: 'title', taken: D.news.filter(function (x) { return x.id !== id; }).map(function (x) { return x.slug; }), ph: 'news-session-report', hint: 'Якщо порожньо, створиться із заголовка. Латиниця, цифри і дефіс.', value: v('slug', '') },
           { id: 'deck', type: 'textarea', label: 'Короткий опис', req: true, max: 200, rows: 3, value: v('deck', '') },
           { id: 'date', type: 'date', label: 'Дата', req: true, half: true, value: v('date', '') },
-          { id: 'section', type: 'select', label: 'Розділ', req: true, half: true, options: SECTIONS, value: v('section', '') },
+          { id: 'cat', type: 'select', label: 'Категорія', req: true, half: true, options: CATS, hint: 'Фільтр новин на Home і на сторінці Updates', value: v('cat', '') },
           { id: 'type', type: 'select', label: 'Тип', req: true, half: true, options: TYPES, value: v('type', '') },
           { id: 'partner', type: 'select', label: 'Партнер', half: true, selPh: 'Без партнера', options: D.partners.filter(function (p) { return p.status === 'pub'; }).map(function (p) { return p.name; }), hint: 'Лише опубліковані партнери', value: (A.partnerById(v('partner', '')) || {}).name || '' }
         ] },
@@ -90,7 +91,7 @@
         ] }
       ],
       onSave: function (val, status) {
-        var rec = { title: val.title, slug: val.slug || A.slugify(val.title), deck: val.deck, date: val.date, section: val.section, type: val.type, partner: (D.partners.concat(D.partnersDeleted || []).find(function (p) { return p.name === val.partner; }) || {}).id || '',
+        var rec = { title: val.title, slug: val.slug || A.slugify(val.title), deck: val.deck, date: val.date, cat: val.cat, type: val.type, partner: (D.partners.concat(D.partnersDeleted || []).find(function (p) { return p.name === val.partner; }) || {}).id || '',
           tags: val.tags, people: val.people.map(memberId), others: val.others, place: val.place, point: val.point,
           img: val.img, imgAuthor: val.img_author, imgCaption: val.img_caption, body: val.body, source: val.source };
         return A.ops.save('news', id, rec, status, val.title);
@@ -99,32 +100,21 @@
     });
   };
 
-  // Заголовки і підписи блоків новин на сайті (Home: Latest і More from Media; сторінка Latest)
+  // Тексти сторінки Updates (усі новини). Заголовок блоку новин на Home — у «Тексти Home»
   A.screens.newsTexts = function (root) {
-    var H = (A.data.pages || {}).home || {}, L = (A.data.pages || {}).latest || {};
+    var L = (A.data.pages || {}).latest || {};
     var v = function (o, k, d) { return o[k] != null && o[k] !== '' ? o[k] : d; };
     return A.form(root, {
-      title: 'Тексти блоків новин на сайті', back: { label: 'Новини', href: '#/news' }, footer: 'save', liveTitle: false, tabs: true,
-      meta: 'Кожна вкладка — блок на сайті. Самі новини редагуються в списку новин', footMeta: 'Зберігаються всі вкладки разом. Зміни зʼявляться на сайті після збереження',
+      title: 'Тексти сторінки Updates', back: { label: 'Новини', href: '#/news' }, footer: 'save', liveTitle: false,
+      meta: 'Сторінка з усіма новинами і фільтрами за категорією і тегом. Заголовок блоку новин на Home — у розділі «Тексти Home»', footMeta: 'Зміни зʼявляться на сайті після збереження',
       sections: [
-        { title: 'Home · блок News', desc: 'Великий блок новин на головній: головна новина і три найсвіжіші.', fields: [
-          { id: 'latestLabel', type: 'text', label: 'Надпис над заголовком', req: true, max: 30, half: true, value: v(H, 'latestLabel', 'News') },
-          { id: 'latestCta', type: 'text', label: 'Текст кнопки', req: true, max: 30, half: true, hint: 'Веде на сторінку News', value: v(H, 'latestCta', 'View all updates') },
-          { id: 'latestTitle', type: 'text', label: 'Заголовок', req: true, max: 80, value: v(H, 'latestTitle', 'Updates from the team') }
-        ] },
-        { title: 'Home · ряд More from Media', desc: 'Три останні новини з розділом Media під блоком фільму.', fields: [
-          { id: 'mediaRowLabel', type: 'text', label: 'Надпис над рядом', req: true, max: 40, value: v(H, 'mediaRowLabel', 'More from Media') }
-        ] },
-        { title: 'Сторінка News', desc: 'Сторінка з усіма новинами і фільтрами за розділом і тегом.', fields: [
-          { id: 'label', type: 'text', label: 'Надпис над заголовком', req: true, max: 30, half: true, value: v(L, 'label', 'News') },
-          { id: 'title', type: 'text', label: 'Заголовок', req: true, max: 80, value: v(L, 'title', 'Updates from the team') },
+        { title: 'Шапка сторінки', fields: [
+          { id: 'label', type: 'text', label: 'Надпис над заголовком', req: true, max: 40, value: v(L, 'label', 'Updates from the team') },
+          { id: 'title', type: 'text', label: 'Заголовок', req: true, max: 80, value: v(L, 'title', 'News from the team') },
           { id: 'intro', type: 'textarea', label: 'Вступ', max: 300, rows: 3, value: v(L, 'intro', 'Session reports, team updates and stories from the people behind TAKE HIGH.') }
         ] }
       ],
-      onSave: function (val) {
-        return A.ops.page('home', { latestLabel: val.latestLabel, latestTitle: val.latestTitle, latestCta: val.latestCta, mediaRowLabel: val.mediaRowLabel }, 'Home: блоки новин')
-          .then(function () { return A.ops.page('latest', { label: val.label, title: val.title, intro: val.intro }, 'Сторінка News'); });
-      }
+      onSave: function (val) { return A.ops.page('latest', { label: val.label, title: val.title, intro: val.intro }, 'Сторінка Updates'); }
     });
   };
 

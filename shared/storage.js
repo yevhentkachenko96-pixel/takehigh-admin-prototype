@@ -159,7 +159,8 @@
       return fetch('https://content.dropboxapi.com/2/files/download', { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Dropbox-API-Arg': argHeader({ path: path }) } });
     }).then(function (r) { if (!r.ok) return dbxErr(r, 'Читання звернення'); return r.json(); });
   }
-  function dbxEnquiryList(limit) {
+  // усі файли .json у папці (найновіші за назвою — першими) з вмістом; _path — шлях файлу для оновлення
+  function dbxFolderList(dir, limit, what) {
     function page(res, acc) {
       return res.json().then(function (j) {
         acc = acc.concat(j.entries.filter(function (e) { return e['.tag'] === 'file' && /\.json$/.test(e.name); }));
@@ -167,14 +168,15 @@
         return acc;
       });
     }
-    return rpc('files/list_folder', { path: ENQ_DIR, limit: 2000 }).then(function (r) {
-      if (!r.ok) return r.text().then(function (t) { if (/not_found/.test(t)) return []; return dbxErr({ status: r.status, text: function () { return Promise.resolve(t); } }, 'Список звернень'); });
+    return rpc('files/list_folder', { path: dir, limit: 2000 }).then(function (r) {
+      if (!r.ok) return r.text().then(function (t) { if (/not_found/.test(t)) return []; return dbxErr({ status: r.status, text: function () { return Promise.resolve(t); } }, what); });
       return page(r, []);
     }).then(function (files) {
       files.sort(function (a, b) { return a.name < b.name ? 1 : -1; });
       return Promise.all(files.slice(0, limit || 200).map(function (f) { return dbxDownload(f.path_lower).then(function (r) { r._path = f.path_lower; return r; }).catch(function () { return null; }); }));
     }).then(function (L) { return L.filter(Boolean); });
   }
+  function dbxEnquiryList(limit) { return dbxFolderList(ENQ_DIR, limit, 'Список звернень'); }
   // оновлення звернення (статус, відповідальний…): перезаписуємо той самий файл
   function dbxEnquiryUpdate(rec) {
     var path = rec._path, body = Object.assign({}, rec); delete body._path;
@@ -186,6 +188,35 @@
       });
     }).then(function (r) { if (!r.ok) return dbxErr(r, 'Збереження звернення'); return rec; });
   }
+  /* ---------- підписки «Follow the updates»: файл на кожен email, назва — хеш адреси, тож дубль не створюється ---------- */
+  var SUB_DIR = DBX.subscribersDir || '/subscribers';
+  var SUB_LOCAL = 'th-gh-subscribers-v1';
+  function emailKey(email) {
+    var e = String(email || '').trim().toLowerCase();
+    if (window.crypto && crypto.subtle && window.TextEncoder) return crypto.subtle.digest('SHA-256', new TextEncoder().encode(e)).then(function (b) {
+      return Array.prototype.map.call(new Uint8Array(b), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('').slice(0, 32);
+    });
+    return Promise.resolve(e.replace(/[^a-z0-9]/g, '_'));
+  }
+  function dbxSubscriberSave(rec) {
+    return emailKey(rec.email).then(function (k) {
+      return getToken().then(function (t) {
+        return fetch('https://content.dropboxapi.com/2/files/upload', {
+          method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/octet-stream',
+            'Dropbox-API-Arg': argHeader({ path: SUB_DIR + '/' + k + '.json', mode: { '.tag': 'add' }, autorename: false, mute: true }) },
+          body: JSON.stringify(rec)
+        });
+      });
+    }).then(function (r) {
+      if (r.status === 409) return r.text().then(function (t) { if (/conflict/.test(t)) throw StoreError('exists', 'Ця адреса вже підписана', t); throw StoreError('server', 'Підписку не збережено', t); });
+      if (!r.ok) return dbxErr(r, 'Збереження підписки');
+      return rec;
+    });
+  }
+  function dbxDelete(path) {
+    return rpc('files/delete_v2', { path: path }).then(function (r) { if (!r.ok) return dbxErr(r, 'Видалення'); return true; });
+  }
+  function localSubs() { try { return JSON.parse(lsGet(SUB_LOCAL) || '[]'); } catch (e) { return []; } }
   function localEnquiries() { try { return JSON.parse(lsGet(ENQ_LOCAL) || '[]'); } catch (e) { return []; } }
 
   /* ---------- локальне сховище (тести і запуск без ключів) ---------- */
@@ -259,6 +290,23 @@
     listEnquiries: function (limit) {
       if (MODE === 'dropbox') return dbxEnquiryList(limit);
       return Promise.resolve(localEnquiries().slice(0, limit || 200));
+    },
+    // підписка: { email, source, created, consent }; якщо адреса вже є — помилка з code 'exists'
+    saveSubscriber: function (rec) {
+      if (MODE === 'dropbox') return dbxSubscriberSave(rec);
+      var L = localSubs(), e = String(rec.email).trim().toLowerCase();
+      if (L.some(function (x) { return String(x.email).trim().toLowerCase() === e; })) return Promise.reject(StoreError('exists', 'Ця адреса вже підписана', ''));
+      L.unshift(rec);
+      return lsSet(SUB_LOCAL, JSON.stringify(L)) ? Promise.resolve(rec) : Promise.reject(StoreError('quota', 'Браузеру не вистачає місця', ''));
+    },
+    listSubscribers: function (limit) {
+      if (MODE === 'dropbox') return dbxFolderList(SUB_DIR, limit || 5000, 'Список підписок');
+      return Promise.resolve(localSubs());
+    },
+    deleteSubscribers: function (recs) {
+      if (MODE === 'dropbox') return Promise.all(recs.map(function (r) { return r._path ? dbxDelete(r._path) : true; }));
+      var ids = recs.map(function (r) { return r.id; });
+      return lsSet(SUB_LOCAL, JSON.stringify(localSubs().filter(function (x) { return ids.indexOf(x.id) < 0; }))) ? Promise.resolve(true) : Promise.reject(StoreError('quota', 'Браузеру не вистачає місця', ''));
     }
   };
   window.THStorage = THStorage;

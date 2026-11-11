@@ -9,9 +9,10 @@
 
   // Розділи меню: [ключ маршруту, назва]. У прототипі лише ті розділи, які реально працюють.
   var GROUPS = [
-    ['Контент', [['news', 'Новини'], ['tags', 'Теги']]],
+    ['Контент', [['home', 'Тексти Home'], ['news', 'Новини'], ['tags', 'Теги'], ['sessions', 'Сесії']]],
     ['Люди', [['members', 'Учасники']]],
-    ['Партнерства', [['partners', 'Партнери'], ['cases', 'Кейси'], ['enquiries', 'Звернення']]]
+    ['Партнерства', [['partners', 'Партнери'], ['cases', 'Кейси']]],
+    ['Вхідні', [['enquiries', 'Звернення'], ['subscribers', 'Підписки']]]
   ];
 
   A.saveError = function (e) {
@@ -96,7 +97,10 @@
     if (sec === 'news-texts') { current = s.newsTexts(main); current = { kind: 'form', ctl: current }; document.title = 'Тексти блоків новин · TAKE HIGH · Адмінка'; window.scrollTo(0, 0); return; }
     if (sec === 'club-texts') { current = { kind: 'form', ctl: s.clubTexts(main) }; document.title = 'Тексти сторінки Club · TAKE HIGH · Адмінка'; window.scrollTo(0, 0); return; }
     if (sec === 'partnerships-texts') { current = { kind: 'form', ctl: s.partnershipsTexts(main) }; document.title = 'Тексти сторінки Partnerships · TAKE HIGH · Адмінка'; window.scrollTo(0, 0); return; }
-    if (item[0] === 'partners') current = rec ? s.partnerCard(main, rec) : s.partners(main);
+    if (item[0] === 'home') { current = { kind: 'form', ctl: s.homeTexts(main) }; document.title = 'Тексти Home · TAKE HIGH · Адмінка'; window.scrollTo(0, 0); return; }
+    if (item[0] === 'subscribers') { s.subscribers(main); current = null; document.title = 'Підписки · TAKE HIGH · Адмінка'; window.scrollTo(0, 0); return; }
+    if (item[0] === 'sessions') current = rec ? s.sessionCard(main, rec) : s.sessions(main);
+    else if (item[0] === 'partners') current = rec ? s.partnerCard(main, rec) : s.partners(main);
     else if (item[0] === 'cases') current = rec ? s.caseCard(main, rec) : s.cases(main);
     else if (item[0] === 'enquiries') { s.enquiries(main, rec); current = null; }
     else if (item[0] === 'members') current = rec ? s.memberCard(main, rec) : s.members(main);

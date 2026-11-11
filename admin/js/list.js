@@ -60,7 +60,8 @@
     function menuFor(r) {
       var m = [];
       (cfg.actions || ['edit']).forEach(function (a) {
-        if (a === 'edit') m.push('<a class="menu-item" role="menuitem" href="' + esc(r.href) + '">Редагувати</a>');
+        if (a === 'edit') m.push('<a class="menu-item" role="menuitem" href="' + esc(r.href) + '">' + esc(cfg.editLabel || 'Редагувати') + '</a>');
+        if (typeof a === 'object' && (!a.show || a.show(r))) m.push('<button class="menu-item" role="menuitem" type="button" data-act="custom" data-key="' + esc(a.key) + '" data-id="' + esc(r.id) + '">' + esc(a.label) + '</button>');
         if (a === 'makeMain' && r.status === 'pub' && !r.featured) m.push('<button class="menu-item" role="menuitem" type="button" data-act="main" data-id="' + esc(r.id) + '">Зробити головною</button>');
         if (a === 'publish' && r.status !== 'pub') m.push('<button class="menu-item" role="menuitem" type="button" data-act="pub" data-id="' + esc(r.id) + '">Опублікувати</button>');
         if (a === 'unpublish' && r.status === 'pub') m.push('<button class="menu-item" role="menuitem" type="button" data-act="unpub" data-id="' + esc(r.id) + '">Зняти з публікації</button>');
@@ -96,8 +97,9 @@
       var nSel = Object.keys(st.sel).length;
       var h = '<div style="display:flex;flex-direction:column;gap:20px;width:100%">';
       h += '<header class="page-head"><div class="head-left"><h1>' + esc(cfg.title) + '</h1><span class="meta" aria-live="polite">Записів: ' + (active() ? R.length + ' з ' + total : R.length) + '</span></div>';
-      if (cfg.addHref || cfg.extraHref) {
+      if (cfg.addHref || cfg.extraHref || cfg.headButtons) {
         h += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+        (cfg.headButtons || []).forEach(function (b) { h += '<button class="btn btn-secondary" type="button" data-act="head" data-key="' + esc(b.key) + '"' + (b.disabled && b.disabled() ? ' disabled' : '') + '>' + (b.icon ? icon(b.icon) : '') + esc(b.label) + '</button>'; });
         if (cfg.extraHref) h += '<a class="btn btn-secondary" href="' + esc(cfg.extraHref) + '">' + esc(cfg.extraLabel) + '</a>';
         if (cfg.addHref) h += '<a class="btn btn-primary" href="' + esc(cfg.addHref) + '">' + icon('plus') + esc(cfg.addLabel) + '</a>';
         h += '</div>';
@@ -105,10 +107,11 @@
       h += '</header>';
       if (cfg.tabs) {
         var all0 = allRows();
-        h += '<div class="tabs" role="tablist" aria-label="Групи">' + cfg.tabs.map(function (tb) {
-          var n = all0.filter(function (r) { return (r.f ? r.f.tab : r.tab) === tb.key; }).length, on = tb.key === mem.tab;
-          return '<button class="tab' + (on ? ' is-active' : '') + '" role="tab" type="button" aria-selected="' + on + '" data-act="tab" data-key="' + esc(tb.key) + '">' + esc(tb.label) + ' <span class="tab-n">' + n + '</span></button>';
-        }).join('') + '</div>';
+        // групи — випадним списком (не рядом кнопок), з кількістю записів у кожній
+        h += '<div class="group-pick"><label class="label" for="lst-tab">' + esc(cfg.tabsLabel || 'Група') + '</label><select class="select" id="lst-tab" data-act="tab-sel">' + cfg.tabs.map(function (tb) {
+          var n = all0.filter(function (r) { return (r.f ? r.f.tab : r.tab) === tb.key; }).length;
+          return '<option value="' + esc(tb.key) + '"' + (tb.key === mem.tab ? ' selected' : '') + '>' + esc(tb.label) + ' (' + n + ')</option>';
+        }).join('') + '</select></div>';
       }
       var note = typeof cfg.note === 'function' ? cfg.note(mem.tab, manual(), active()) : cfg.note;
       if (note) h += '<p class="note" style="margin:0">' + icon('info') + '<span>' + esc(note) + '</span></p>';
@@ -116,7 +119,11 @@
       if (nSel) {
         h += '<div class="bulk" role="region" aria-label="Масові дії"><strong>Обрано: ' + nSel + '</strong>' +
           ((cfg.actions || []).indexOf('publish') >= 0 ? '<button class="btn btn-secondary btn-sm" type="button" data-act="bulk-pub">Опублікувати</button>' : '') +
-          '<button class="btn btn-secondary btn-sm" type="button" data-act="bulk-unpub">Зняти з публікації</button>' +
+          ((cfg.actions || []).indexOf('unpublish') >= 0 ? '<button class="btn btn-secondary btn-sm" type="button" data-act="bulk-unpub">Зняти з публікації</button>' : '') +
+          (cfg.bulk || []).map(function (b) {
+            return '<select class="select select-sm" data-act="bulk-sel" data-key="' + esc(b.key) + '" aria-label="' + esc(b.label) + ' для обраних"><option value="">' + esc(b.label) + '…</option>' +
+              b.options().map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join('') + '</select>';
+          }).join('') +
           (cfg.onDelete ? '<button class="btn btn-secondary btn-sm btn-danger-text" type="button" data-act="bulk-del">Видалити</button>' : '') +
           '<button class="btn btn-ghost btn-sm" type="button" data-act="bulk-clear">Скасувати вибір</button></div>';
       }
@@ -248,6 +255,8 @@
     root.onclick = function (e) {
       var t = e.target.closest('[data-act]'); if (!t || !root.contains(t)) return;
       var act = t.getAttribute('data-act'), id = t.getAttribute('data-id');
+      if (act === 'head') { var hb = (cfg.headButtons || []).find(function (b) { return b.key === t.getAttribute('data-key'); }); if (hb) hb.run(rows().map(function (r) { return r.id; })); return; }
+      if (act === 'custom') { var ca = (cfg.actions || []).find(function (a) { return typeof a === 'object' && a.key === t.getAttribute('data-key'); }); st.menuFor = null; render(); if (ca) ca.run(id); return; }
       if (act === 'tab') { mem.tab = t.getAttribute('data-key'); st.sel = {}; st.menuFor = null; render(); var tb = root.querySelector('.tab.is-active'); if (tb) tb.focus(); return; }
       if (act === 'move') { move(id, +t.getAttribute('data-dir'), '[data-act="move"][data-id="' + id + '"][data-dir="' + t.getAttribute('data-dir') + '"]'); return; }
       if (act === 'dd') { var k0 = t.getAttribute('data-key'); st.dd = st.dd === k0 ? null : k0; render(); var c0 = root.querySelector('.fdd-panel input'); if (c0 && st.dd) c0.focus(); return; }
@@ -277,6 +286,12 @@
       }
       var t = e.target.closest('[data-act]'); if (!t) return;
       var act = t.getAttribute('data-act');
+      if (act === 'tab-sel') { mem.tab = t.value; st.sel = {}; st.menuFor = null; render(); var ts = document.getElementById('lst-tab'); if (ts) ts.focus(); return; }
+      if (act === 'bulk-sel' && t.value) {
+        var bk = (cfg.bulk || []).find(function (b) { return b.key === t.getAttribute('data-key'); }), ids0 = Object.keys(st.sel), val0 = t.value;
+        if (bk) Promise.resolve(bk.run(ids0, val0)).then(function (msg) { st.sel = {}; render(); if (msg) A.toast(msg); }, function (er) { render(); A.saveError(er); });
+        return;
+      }
       if (act === 'sel') { var id = t.getAttribute('data-id'); if (t.checked) st.sel[id] = true; else delete st.sel[id]; render(); }
       if (act === 'all') { st.sel = {}; if (t.checked) rows().forEach(function (r) { st.sel[r.id] = true; }); render(); }
     };
@@ -303,6 +318,6 @@
     };
 
     render();
-    return { render: render };
+    return { render: render, sel: function () { return Object.keys(st.sel); } };
   };
 })();

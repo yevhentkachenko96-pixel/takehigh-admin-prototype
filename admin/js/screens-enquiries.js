@@ -1,5 +1,6 @@
-/* Звернення: вхідні заявки з форм сайту. Статус, відповідальний, наступна дія, відповідь листом, історія.
-   Головне джерело — файли в Dropbox (enquiries/), Google-таблиця отримує копію змін (резерв). */
+/* Звернення і Підписки: вхідні з форм сайту.
+   Звернення — таблиця як в інших розділах, картка звернення — окрема сторінка (статус і відповідальний — випадні списки).
+   Головне джерело — файли в Dropbox (enquiries/, subscribers/), Google-таблиця отримує копію (резерв). */
 (function () {
   'use strict';
   var A = window.A, esc = A.esc, icon = A.icon;
@@ -7,24 +8,22 @@
 
   var STATUSES = [['New', 'Нове'], ['In progress', 'В роботі'], ['Waiting', 'Чекаємо відповіді'], ['Closed', 'Закрито']];
   var SNAME = {}; STATUSES.forEach(function (s) { SNAME[s[0]] = s[1]; });
+  var TONES = { 'Нове': 'new', 'В роботі': 'prog', 'Чекаємо відповіді': 'wait', 'Закрито': 'closed' };
   var TYPE = { partnership: 'Partnership', press: 'Press' };
-  var cache = null, filter = 'open', query = '';
+  var NO_OWNER = 'Не призначено';
+  var cache = null;
 
-  var fdt = function (iso) { var d = new Date(iso); if (isNaN(d)) return iso || ''; var z = function (n) { return ('0' + n).slice(-2); }; return z(d.getDate()) + '.' + z(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); };
-  var ago = function (iso) {
-    var m = Math.round((Date.now() - new Date(iso)) / 60000); if (isNaN(m)) return '';
-    if (m < 1) return 'щойно'; if (m < 60) return m + ' хв тому'; var h = Math.round(m / 60); if (h < 24) return h + ' год тому';
-    var d = Math.round(h / 24); return d < 7 ? d + ' дн тому' : fdt(iso).slice(0, 10);
-  };
+  var z = function (n) { return ('0' + n).slice(-2); };
+  var fdt = function (iso) { var d = new Date(iso); if (isNaN(d)) return iso || ''; return z(d.getDate()) + '.' + z(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); };
   var owners = function () { return (A.data.members || []).filter(function (m) { return m.status === 'pub'; }); };
   var ownerName = function (id) { var m = (A.data.members || []).concat(A.data.membersDeleted || []).find(function (x) { return x.id === id; }); return m ? m.name : ''; };
-  var initials = function (n) { return String(n || '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase(); };
   var statusOf = function (e) { return SNAME[e.status] ? e.status : 'New'; };
-  function pill(st) { return '<span class="eq-pill eq-' + st.replace(/\s+/g, '-').toLowerCase() + '">' + esc(SNAME[st] || st) + '</span>'; }
+  var topicOf = function (e) { return e.topic || TYPE[e.type] || e.type || '—'; };
+  var lastChange = function (e) { var h = e.history || []; return h.length ? h[h.length - 1].at : e.created; };
 
   function load(force) {
     if (cache && !force) return Promise.resolve(cache);
-    return window.THStorage.listEnquiries(300).then(function (L) { cache = L.sort(function (a, b) { return a.created < b.created ? 1 : -1; }); return cache; });
+    return window.THStorage.listEnquiries(500).then(function (L) { cache = L.sort(function (a, b) { return a.created < b.created ? 1 : -1; }); return cache; });
   }
   // копія змін у Google-таблицю (скрипт знаходить рядок за ID)
   function toSheet(e) {
@@ -37,114 +36,180 @@
     e.history = (e.history || []).concat([{ at: new Date().toISOString(), who: A.user || 'Адміністратор', act: act }]);
     return window.THStorage.updateEnquiry(e).then(function () { toSheet(e); return e; }, function (er) { Object.keys(e).forEach(function (k) { delete e[k]; }); Object.assign(e, old); throw er; });
   }
+  // статус і відповідальний: призначення відповідального переводить нове звернення в «В роботі»
+  function statusPatch(e, v) { return { patch: { status: v }, act: 'Статус: ' + SNAME[v] }; }
+  function ownerPatch(e, v) {
+    var p = { owner: v }; if (v && statusOf(e) === 'New') p.status = 'In progress';
+    return { patch: p, act: v ? 'Відповідальний: ' + ownerName(v) : 'Відповідального знято' };
+  }
+  function series(list, fn) { var i = 0, n = 0; function next() { if (i >= list.length) return Promise.resolve(n); var x = list[i++]; var r = fn(x); if (!r) return next(); return r.then(function () { n++; return next(); }); } return next(); }
 
-  function visible(L) {
-    var q = query.trim().toLowerCase();
-    return L.filter(function (e) {
-      var st = statusOf(e);
-      if (filter === 'open' && st === 'Closed') return false;
-      if (filter !== 'open' && filter !== 'all' && st !== filter) return false;
-      return !q || [e.name, e.company, e.email].join(' ').toLowerCase().indexOf(q) >= 0;
+  function reply(e) {
+    // лист відкривається у вашій пошті; статус стає «Чекаємо відповіді»
+    var subj = 'Re: ' + topicOf(e) + ' enquiry' + (e.company ? ' — ' + e.company : '');
+    var body = 'Hi ' + String(e.name || '').split(' ')[0] + ',\n\n\n\n—\nTAKE HIGH\n\n> ' + String(e.message || '').slice(0, 1200).replace(/\n/g, '\n> ');
+    window.location.href = 'mailto:' + encodeURIComponent(e.email) + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body);
+    var patch = { lastReply: new Date().toISOString() }; if (statusOf(e) !== 'Closed') patch.status = 'Waiting';
+    return change(e, patch, 'Відкрито лист-відповідь у пошті');
+  }
+
+  function loading(root, what, again) {
+    root.innerHTML = '<div class="state-box"><p class="meta">Завантаження ' + what + '…</p></div>';
+    return function (er) { root.innerHTML = '<div class="state-box"><h1 style="margin:0;font-size:20px">Не вдалося завантажити ' + what + '</h1><p style="margin:0">' + esc(er && er.message || '') + '</p><div><button class="btn btn-primary" type="button" id="eq-retry">Спробувати ще раз</button></div></div>'; document.getElementById('eq-retry').onclick = again; };
+  }
+
+  /* ---------- список звернень ---------- */
+  function listScreen(root) {
+    var ctl = A.list(root, {
+      title: 'Звернення', memoryKey: 'enquiries', titleKey: 'name', editLabel: 'Відкрити',
+      note: 'Заявки з форм сайту: «Get in touch» на Home і Partnership enquiry. Статус і відповідального можна змінити в картці або для кількох обраних одразу. Копія кожної зміни йде в Google-таблицю.',
+      emptyTitle: 'Звернень ще немає', emptyText: 'Тут зʼявляться заявки з форм сайту.',
+      sort: { key: 'date', dir: 'desc' },
+      search: { key: 'q', ph: 'Імʼя, компанія або email' },
+      filters: [
+        { key: 'status', label: 'Статус', options: STATUSES.map(function (s) { return s[0]; }), names: SNAME },
+        { key: 'owner', label: 'Відповідальний', options: [NO_OWNER].concat(owners().map(function (m) { return m.name; })) },
+        { key: 'topic', label: 'Тема', options: (function () { var u = []; (cache || []).forEach(function (e) { var t = topicOf(e); if (u.indexOf(t) < 0) u.push(t); }); return u.sort(); })() }
+      ],
+      headButtons: [{ key: 'refresh', label: 'Оновити', run: function () { load(true).then(function () { ctl.render(); A.toast('Список оновлено'); }, A.saveError); } }],
+      actions: ['edit', { key: 'reply', label: 'Відповісти листом', run: function (id) { var e = cache.find(function (x) { return x.id === id; }); if (e) reply(e).then(function () { ctl.render(); A.toast('Лист відкрито у вашій пошті. Статус: «Чекаємо відповіді»'); }, A.saveError); } }],
+      bulk: [
+        { key: 'status', label: 'Змінити статус', options: function () { return STATUSES; }, run: function (ids, v) {
+          return series(ids, function (id) { var e = cache.find(function (x) { return x.id === id; }); if (!e || statusOf(e) === v) return null; var p = statusPatch(e, v); return change(e, p.patch, p.act); })
+            .then(function (n) { return n ? 'Статус «' + SNAME[v] + '»: ' + n : 'Нічого не змінено'; });
+        } },
+        { key: 'owner', label: 'Призначити відповідального', options: function () { return [['-', 'Зняти відповідального']].concat(owners().map(function (m) { return [m.id, m.name]; })); }, run: function (ids, v) {
+          v = v === '-' ? '' : v;
+          return series(ids, function (id) { var e = cache.find(function (x) { return x.id === id; }); if (!e || (e.owner || '') === v) return null; var p = ownerPatch(e, v); return change(e, p.patch, p.act); })
+            .then(function (n) { return n ? (v ? 'Призначено ' + ownerName(v) + ': ' + n : 'Відповідального знято: ' + n) : 'Нічого не змінено'; });
+        } }
+      ],
+      entityLabel: 'звернення', entityForms: ['звернення', 'звернень'],
+      cols: [
+        { key: 'date', label: 'Дата', sortable: true, nowrap: true, firstDir: 'desc' },
+        { key: 'name', label: 'Імʼя', kind: 'link', sortable: true },
+        { key: 'company', label: 'Компанія', sortable: true },
+        { key: 'topic', label: 'Тема', sortable: true },
+        { key: 'st', label: 'Статус', kind: 'pill', tones: TONES, sortable: true },
+        { key: 'owner', label: 'Відповідальний', sortable: true },
+        { key: 'changed', label: 'Змінено', kind: 'muted', sortable: true, firstDir: 'desc' }
+      ],
+      rows: function () {
+        return (cache || []).map(function (e) {
+          var own = ownerName(e.owner), st = statusOf(e);
+          return { id: e.id, href: '#/enquiries/' + encodeURIComponent(e.id),
+            f: { status: st, owner: own || NO_OWNER, topic: topicOf(e) },
+            c: { date: fdt(e.created), name: e.name || '—', company: e.company || '', email: e.email, topic: topicOf(e) + (e.group ? ' · ' + e.group : ''), st: SNAME[st], owner: own, changed: fdt(lastChange(e)),
+              q: [e.name, e.company, e.email].join(' ') },
+            s: { date: e.created, st: STATUSES.map(function (s) { return s[0]; }).indexOf(st), changed: lastChange(e) } };
+        });
+      }
     });
-  }
-  function counts(L) { var c = { all: L.length, open: 0 }; STATUSES.forEach(function (s) { c[s[0]] = 0; }); L.forEach(function (e) { var st = statusOf(e); c[st]++; if (st !== 'Closed') c.open++; }); return c; }
-
-  function listHtml(L, activeId) {
-    var c = counts(L), V = visible(L);
-    var chips = [['open', 'Відкриті'], ['New', 'Нові'], ['In progress', 'В роботі'], ['Waiting', 'Чекаємо'], ['Closed', 'Закриті'], ['all', 'Усі']];
-    var h = '<div class="eq-filters" role="group" aria-label="Фільтр за статусом">' + chips.map(function (ch) {
-      return '<button class="eq-chip" type="button" data-eqf="' + ch[0] + '" aria-pressed="' + (filter === ch[0]) + '">' + ch[1] + ' <span>' + c[ch[0]] + '</span></button>';
-    }).join('') + '</div>' +
-      '<div class="search eq-search"><span class="search-ico" aria-hidden="true">' + icon('search', 'i-sm') + '</span><input class="input" id="eq-q" type="search" placeholder="Імʼя, компанія або email" aria-label="Пошук звернень" value="' + esc(query) + '"></div>';
-    if (!V.length) return h + '<div class="eq-empty">' + (L.length ? 'Нічого не знайдено.' : 'Звернень ще немає. Тут зʼявляться заявки з форми Partnership enquiry.') + '</div>';
-    return h + '<ul class="eq-list" aria-label="Звернення">' + V.map(function (e) {
-      var st = statusOf(e), own = ownerName(e.owner);
-      return '<li><a class="eq-item' + (e.id === activeId ? ' is-active' : '') + (st === 'New' ? ' is-new' : '') + '" href="#/enquiries/' + encodeURIComponent(e.id) + '"' + (e.id === activeId ? ' aria-current="true"' : '') + '>' +
-        '<span class="eq-top"><b>' + esc(e.name || '—') + '</b><time datetime="' + esc(e.created) + '">' + esc(ago(e.created)) + '</time></span>' +
-        '<span class="eq-sub">' + esc([e.company, TYPE[e.type] || e.type, e.direction].filter(Boolean).join(' · ')) + '</span>' +
-        '<span class="eq-snip">' + esc(String(e.message || '').slice(0, 120)) + '</span>' +
-        '<span class="eq-meta">' + pill(st) + (own ? '<span class="eq-owner" title="Відповідальний: ' + esc(own) + '"><i>' + esc(initials(own)) + '</i>' + esc(own.split(' ')[0]) + '</span>' : '<span class="eq-owner none">Без відповідального</span>') + '</span></a></li>';
-    }).join('') + '</ul>';
+    return ctl;
   }
 
-  function detailHtml(e) {
-    if (!e) return '<div class="eq-blank">' + icon('info') + '<p>Оберіть звернення зліва, щоб переглянути його, призначити відповідального і відповісти.</p></div>';
-    var st = statusOf(e), src = e.source || {};
-    var h = '<article class="eq-detail" aria-labelledby="eq-h">';
-    h += '<a class="crumb eq-back" href="#/enquiries">' + icon('back', 'i-sm') + 'Усі звернення</a>';
-    h += '<header class="eq-head"><div><h2 id="eq-h">' + esc(e.name) + (e.company ? ' <span>· ' + esc(e.company) + '</span>' : '') + '</h2>' +
-      '<p class="meta">' + esc(TYPE[e.type] || e.type) + ' · ' + esc(fdt(e.created)) + (e.direction ? ' · ' + esc(e.direction) : '') + '</p></div>' +
-      '<button class="btn btn-primary" type="button" data-eq="reply">' + icon('ext', 'i-sm') + 'Відповісти листом</button></header>';
-    // керування: статус, відповідальний, наступна дія
-    h += '<div class="eq-ctrl">';
-    h += '<div class="eq-field"><span class="label">Статус</span><div class="seg" role="radiogroup" aria-label="Статус">' + STATUSES.map(function (s) {
-      return '<button type="button" role="radio" aria-checked="' + (st === s[0]) + '" class="seg-btn' + (st === s[0] ? ' is-on' : '') + '" data-eqs="' + s[0] + '">' + s[1] + '</button>';
-    }).join('') + '</div></div>';
-    h += '<div class="eq-field"><label class="label" for="eq-owner">Відповідальний</label><select class="select" id="eq-owner"><option value="">Не призначено</option>' +
-      owners().map(function (m) { return '<option value="' + esc(m.id) + '"' + (m.id === e.owner ? ' selected' : '') + '>' + esc(m.name) + '</option>'; }).join('') +
-      (e.owner && !owners().some(function (m) { return m.id === e.owner; }) ? '<option value="' + esc(e.owner) + '" selected>' + esc(ownerName(e.owner) || e.owner) + '</option>' : '') + '</select></div>';
-    h += '<div class="eq-field eq-next"><label class="label" for="eq-next">Наступна дія і строк</label><div class="eq-next-row"><input class="input" id="eq-next" maxlength="200" placeholder="Наприклад: надіслати презентацію до 15.11" value="' + esc(e.next || '') + '"><button class="btn btn-secondary" type="button" data-eq="next">Зберегти</button></div></div>';
-    h += '</div>';
-    h += '<section class="eq-msg" aria-label="Текст звернення"><span class="label">' + (e.type === 'press' ? 'Message' : 'Objective') + '</span><p>' + esc(e.message || '') + '</p></section>';
-    h += '<dl class="eq-kv">' +
-      '<div><dt>Email</dt><dd><a href="mailto:' + esc(e.email) + '">' + esc(e.email) + '</a></dd></div>' +
-      (e.company ? '<div><dt>Компанія</dt><dd>' + esc(e.company) + '</dd></div>' : '') +
-      '<div><dt>Звідки</dt><dd>' + esc([src.page, src.form].filter(Boolean).join(' · ') || '—') + (src.utm ? '<br><span class="meta">' + esc(src.utm) + '</span>' : '') + '</dd></div>' +
-      '<div><dt>Згода з Privacy Notice</dt><dd>' + (e.consent ? 'Так · ' + esc(fdt(e.consent.at)) + ' · версія ' + esc(e.consent.version) : 'Ні') + '</dd></div>' +
-      (e.lastReply ? '<div><dt>Остання відповідь</dt><dd>' + esc(fdt(e.lastReply)) + '</dd></div>' : '') + '</dl>';
-    var hist = [{ at: e.created, who: e.name, act: 'Надіслано з сайту' }].concat(e.history || []).slice().reverse();
-    h += '<section class="eq-hist" aria-label="Історія"><span class="label">Історія</span><ol>' + hist.map(function (x) {
-      return '<li><span class="dot" aria-hidden="true"></span><div><b>' + esc(x.act) + '</b><span class="meta">' + esc(x.who || '') + ' · ' + esc(fdt(x.at)) + '</span></div></li>';
-    }).join('') + '</ol></section>';
-    return h + '</article>';
+  /* ---------- картка звернення ---------- */
+  function cardScreen(root, id) {
+    var e = (cache || []).find(function (x) { return x.id === id; });
+    if (!e) { A.notFound(root, 'Звернення не знайдено', '#/enquiries', 'До звернень'); return; }
+    function draw() {
+      var st = statusOf(e), src = e.source || {}, msgLabel = e.type === 'press' ? 'Message' : e.type === 'partnership' ? 'Objective' : 'Повідомлення';
+      var h = '<div style="display:flex;flex-direction:column;gap:20px;width:100%"><header class="page-head"><div class="head-left"><a class="crumb" href="#/enquiries">' + icon('back', 'i-sm') + 'Звернення</a>' +
+        '<div class="head-row"><h1>' + esc(e.name || '—') + (e.company ? ' · ' + esc(e.company) : '') + '</h1><span class="pill pill-' + TONES[SNAME[st]] + '">' + esc(SNAME[st]) + '</span></div>' +
+        '<span class="meta">' + esc(topicOf(e)) + (e.group ? ' · ' + esc(e.group) : '') + (e.direction ? ' · ' + esc(e.direction) : '') + ' · надіслано ' + esc(fdt(e.created)) + '</span></div>' +
+        '<button class="btn btn-primary" type="button" data-eq="reply">' + icon('ext', 'i-sm') + 'Відповісти листом</button></header>';
+      h += '<div class="eq-card"><div style="display:flex;flex-direction:column;gap:16px;min-width:0">';
+      h += '<section class="section"><div class="section-head"><h2>' + msgLabel + '</h2></div><p class="eq-msg">' + (e.message ? esc(e.message) : '<span class="meta">Без повідомлення</span>') + '</p></section>';
+      h += '<section class="section"><div class="section-head"><h2>Контакти і джерело</h2></div><dl class="eq-dl">' +
+        '<dt>Email</dt><dd><a href="mailto:' + esc(e.email) + '">' + esc(e.email) + '</a></dd>' +
+        (e.company ? '<dt>Компанія</dt><dd>' + esc(e.company) + '</dd>' : '') +
+        '<dt>Тема</dt><dd>' + esc(topicOf(e)) + (e.direction ? ' · ' + esc(e.direction) : '') + '</dd>' +
+        (e.group ? '<dt>Розмір групи</dt><dd>' + esc(e.group) + '</dd>' : '') +
+        '<dt>Звідки</dt><dd>' + esc([src.page, src.form].filter(Boolean).join(' · ') || '—') + (src.utm ? '<br><span class="meta">' + esc(src.utm) + '</span>' : '') + '</dd>' +
+        '<dt>Згода</dt><dd>' + (e.consent ? 'Так · ' + esc(fdt(e.consent.at)) + ' · версія ' + esc(e.consent.version) : 'Ні') + '</dd>' +
+        (e.lastReply ? '<dt>Остання відповідь</dt><dd>' + esc(fdt(e.lastReply)) + '</dd>' : '') + '</dl></section>';
+      h += '</div><aside class="eq-side-box"><section class="section" style="gap:14px">' +
+        '<div class="field"><label class="label" for="eq-status">Статус</label><select class="select" id="eq-status">' + STATUSES.map(function (s) { return '<option value="' + s[0] + '"' + (s[0] === st ? ' selected' : '') + '>' + s[1] + '</option>'; }).join('') + '</select></div>' +
+        '<div class="field"><label class="label" for="eq-owner">Відповідальний</label><select class="select" id="eq-owner"><option value="">Не призначено</option>' +
+        owners().map(function (m) { return '<option value="' + esc(m.id) + '"' + (m.id === e.owner ? ' selected' : '') + '>' + esc(m.name) + '</option>'; }).join('') +
+        (e.owner && !owners().some(function (m) { return m.id === e.owner; }) ? '<option value="' + esc(e.owner) + '" selected>' + esc(ownerName(e.owner) || e.owner) + '</option>' : '') + '</select><div class="below"><span class="hint">Учасники з розділу Учасники. Призначення переводить нове звернення в «В роботі»</span></div></div>' +
+        '<div class="field"><label class="label" for="eq-next">Наступна дія і строк</label><input class="input" id="eq-next" maxlength="200" placeholder="Наприклад: надіслати презентацію до 15.11" value="' + esc(e.next || '') + '">' +
+        '<div><button class="btn btn-secondary btn-sm" type="button" data-eq="next">Зберегти дію</button></div></div></section>';
+      var hist = [{ at: e.created, who: e.name, act: 'Надіслано з сайту' }].concat(e.history || []).slice().reverse();
+      h += '<section class="section"><div class="section-head"><h2>Історія</h2></div><ol class="eq-hist2">' + hist.map(function (x) {
+        return '<li><b>' + esc(x.act) + '</b><span class="meta">' + esc(x.who || '') + ' · ' + esc(fdt(x.at)) + '</span></li>';
+      }).join('') + '</ol></section></aside></div></div>';
+      var ae = document.activeElement, keep = ae && root.contains(ae) ? ae.id : null;
+      root.innerHTML = h;
+      if (keep) { var k = document.getElementById(keep); if (k) k.focus(); }
+    }
+    function save(p, okMsg) { return change(e, p.patch, p.act).then(function () { draw(); A.toast(okMsg); }, function (er) { draw(); A.saveError(er); }); }
+    root.onclick = function (ev) {
+      var b = ev.target.closest('[data-eq]'); if (!b) return;
+      var act = b.getAttribute('data-eq');
+      if (act === 'next') { var v = document.getElementById('eq-next').value.trim(); if (v !== (e.next || '')) save({ patch: { next: v }, act: v ? 'Наступна дія: ' + v : 'Наступну дію прибрано' }, 'Збережено'); else A.toast('Нічого не змінено'); }
+      else if (act === 'reply') reply(e).then(function () { draw(); A.toast('Лист відкрито у вашій пошті. Статус: «Чекаємо відповіді»'); }, function (er) { draw(); A.saveError(er); });
+    };
+    root.onchange = function (ev) {
+      if (ev.target.id === 'eq-status' && ev.target.value !== statusOf(e)) save(statusPatch(e, ev.target.value), 'Статус: ' + SNAME[ev.target.value]);
+      if (ev.target.id === 'eq-owner') { var v = ev.target.value; save(ownerPatch(e, v), v ? 'Призначено: ' + ownerName(v) : 'Відповідального знято'); }
+    };
+    root.oninput = null;
+    root.onkeydown = function (ev) { if (ev.target.id === 'eq-next' && ev.key === 'Enter') { ev.preventDefault(); root.querySelector('[data-eq="next"]').click(); } };
+    draw();
   }
 
   A.screens.enquiries = function (root, id) {
-    var active = id || null, had = !!cache;
-    function draw() {
-      var L = cache || [], e = active ? L.find(function (x) { return x.id === active; }) : null;
-      var ae = document.activeElement, keep = ae && root.contains(ae) ? ae.id : null, cs = null;
-      try { if (keep === 'eq-q') cs = ae.selectionStart; } catch (x) {}
-      root.innerHTML = '<div class="eq' + (active ? ' has-detail' : '') + '"><header class="page-head"><div class="head-left"><h1>Звернення</h1><span class="meta">Заявки з форм сайту. Копія кожної зміни йде в Google-таблицю</span></div>' +
-        '<button class="btn btn-secondary" type="button" data-eq="refresh">Оновити</button></header>' +
-        '<div class="eq-grid"><aside class="eq-side">' + listHtml(L, active) + '</aside><div class="eq-main">' + (active && !e ? '<div class="eq-blank"><p>Звернення не знайдено.</p></div>' : detailHtml(e)) + '</div></div></div>';
-      if (keep) { var k = document.getElementById(keep); if (k) { k.focus(); try { if (cs != null) k.setSelectionRange(cs, cs); } catch (x) {} } }
+    function go() { if (id) cardScreen(root, id); else listScreen(root); }
+    if (cache) { if (id) { go(); return; } var ctl = listScreen(root); load(true).then(function () { if (document.contains(root)) ctl.render(); }, function () {}); return; }
+    var fail = loading(root, 'звернень', function () { A.screens.enquiries(root, id); });
+    load().then(go, fail);
+  };
+
+  /* ---------- Підписки «Follow the updates» ---------- */
+  var subs = null;
+  function loadSubs(force) {
+    if (subs && !force) return Promise.resolve(subs);
+    return window.THStorage.listSubscribers().then(function (L) { subs = L.map(function (s) { if (!s.id) s.id = s.email; return s; }).sort(function (a, b) { return a.created < b.created ? 1 : -1; }); return subs; });
+  }
+  function csv(rows) {
+    var q = function (v) { v = String(v == null ? '' : v); return /[",\n;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var L = [['Email', 'Дата підписки', 'Звідки', 'Згода: дата', 'Згода: версія']].concat(rows.map(function (s) { var src = s.source || {}; return [s.email, fdt(s.created), [src.page, src.form].filter(Boolean).join(' · '), s.consent ? fdt(s.consent.at) : '', s.consent ? s.consent.version : '']; }));
+    var blob = new Blob(['﻿' + L.map(function (r) { return r.map(q).join(','); }).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'takehigh-subscribers-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  A.screens.subscribers = function (root) {
+    var ctl;
+    function show() {
+      ctl = A.list(root, {
+        title: 'Підписки', memoryKey: 'subscribers', titleKey: 'email', selectable: true,
+        note: 'Email-адреси з блоку «Follow the updates» і теми «Follow the Updates» у формі на Home. Одна адреса — один запис: повторна підписка не створює дубль. Розсилки звідси не надсилаються; для сервісу розсилок — експорт у CSV.',
+        emptyTitle: 'Підписок ще немає', emptyText: 'Тут зʼявляться адреси з форми «Follow the updates».',
+        sort: { key: 'date', dir: 'desc' }, search: { key: 'email', ph: 'Пошук за email' },
+        filters: [{ key: 'form', label: 'Звідки', options: ['Follow the updates', 'Get in touch'] }],
+        headButtons: [
+          { key: 'refresh', label: 'Оновити', run: function () { loadSubs(true).then(function () { ctl.render(); A.toast('Список оновлено'); }, A.saveError); } },
+          { key: 'csv', label: 'Експорт CSV', icon: 'ext', run: function (ids) { var R = subs.filter(function (s) { return ids.indexOf(s.id) >= 0; }); if (!R.length) { A.toast('Немає адрес для експорту', true); return; } csv(R); A.toast('Експортовано адрес: ' + R.length); } }
+        ],
+        actions: ['delete'], entityLabel: 'підписку', entityForms: ['підписки', 'підписок'],
+        confirmText: function (ids, titles) { return (ids.length === 1 ? 'Адресу ' + titles[0] + ' буде видалено зі списку.' : 'Буде видалено адрес: ' + ids.length + '.') + ' Людина зможе підписатися знову. Скасувати дію не можна.'; },
+        onDelete: function (ids) { var R = subs.filter(function (s) { return ids.indexOf(s.id) >= 0; }); return window.THStorage.deleteSubscribers(R).then(function () { subs = subs.filter(function (s) { return ids.indexOf(s.id) < 0; }); return R.length; }); },
+        cols: [
+          { key: 'email', label: 'Email', sortable: true },
+          { key: 'date', label: 'Дата підписки', sortable: true, nowrap: true, firstDir: 'desc' },
+          { key: 'form', label: 'Звідки', sortable: true }
+        ],
+        rows: function () {
+          return (subs || []).map(function (s) {
+            var src = s.source || {};
+            return { id: s.id, href: 'mailto:' + s.email, f: { form: src.form || '' }, c: { email: s.email, date: fdt(s.created), form: src.form || '—' }, s: { date: s.created } };
+          });
+        }
+      });
     }
-    function save(e, patch, act, okMsg) {
-      return change(e, patch, act).then(function () { draw(); A.toast(okMsg); }, function (er) { draw(); A.saveError(er); });
-    }
-    root.onclick = function (ev) {
-      var f = ev.target.closest('[data-eqf]'); if (f) { filter = f.getAttribute('data-eqf'); draw(); return; }
-      var L = cache || [], e = L.find(function (x) { return x.id === active; });
-      var s = ev.target.closest('[data-eqs]');
-      if (s && e) { var ns = s.getAttribute('data-eqs'); if (ns !== statusOf(e)) save(e, { status: ns }, 'Статус: ' + SNAME[ns], 'Статус змінено'); return; }
-      var b = ev.target.closest('[data-eq]'); if (!b) return;
-      var act = b.getAttribute('data-eq');
-      if (act === 'refresh') { root.querySelector('.eq-side').innerHTML = '<p class="meta" style="padding:12px">Оновлення…</p>'; load(true).then(draw, function (er) { draw(); A.saveError(er); }); }
-      else if (act === 'next' && e) { var v = document.getElementById('eq-next').value.trim(); if (v !== (e.next || '')) save(e, { next: v }, v ? 'Наступна дія: ' + v : 'Наступну дію прибрано', 'Збережено'); }
-      else if (act === 'reply' && e) {
-        // лист відкривається у вашій пошті; статус стає «Чекаємо відповіді»
-        var subj = 'Re: ' + (TYPE[e.type] || 'Enquiry') + ' enquiry' + (e.company ? ' — ' + e.company : '');
-        var body = 'Hi ' + String(e.name || '').split(' ')[0] + ',\n\n\n\n—\nTAKE HIGH\n\n> ' + String(e.message || '').slice(0, 1200).replace(/\n/g, '\n> ');
-        window.location.href = 'mailto:' + encodeURIComponent(e.email) + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body);
-        var patch = { lastReply: new Date().toISOString() }; if (statusOf(e) !== 'Closed') patch.status = 'Waiting';
-        save(e, patch, 'Відкрито лист-відповідь у пошті', 'Лист відкрито у вашій пошті. Статус: «Чекаємо відповіді»');
-      }
-    };
-    root.onchange = function (ev) {
-      if (ev.target.id !== 'eq-owner') return;
-      var e = (cache || []).find(function (x) { return x.id === active; }); if (!e) return;
-      var v = ev.target.value, patch = { owner: v };
-      if (v && statusOf(e) === 'New') patch.status = 'In progress';
-      save(e, patch, v ? 'Відповідальний: ' + ownerName(v) : 'Відповідального знято', v ? 'Призначено: ' + ownerName(v) : 'Відповідального знято');
-    };
-    root.oninput = function (ev) { if (ev.target.id === 'eq-q') { query = ev.target.value; draw(); } };
-    root.onkeydown = function (ev) { if (ev.target.id === 'eq-next' && ev.key === 'Enter') { ev.preventDefault(); var b = root.querySelector('[data-eq="next"]'); if (b) b.click(); } };
-    if (cache) draw();
-    else {
-      root.innerHTML = '<div class="state-box"><p class="meta">Завантаження звернень…</p></div>';
-      load().then(draw, function (er) { root.innerHTML = '<div class="state-box"><h1 style="margin:0;font-size:20px">Не вдалося завантажити звернення</h1><p style="margin:0">' + esc(er.message || '') + '</p></div>'; });
-    }
-    if (had && !id) load(true).then(function () { if (document.contains(root)) draw(); }, function () {});
+    if (subs) { show(); loadSubs(true).then(function () { if (document.contains(root)) ctl.render(); }, function () {}); return; }
+    var fail = loading(root, 'підписок', function () { A.screens.subscribers(root); });
+    loadSubs().then(show, fail);
   };
 })();
