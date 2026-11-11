@@ -484,8 +484,9 @@ tr.is-dragging{opacity:.45}
 
 /* єдина ширина вмісту для всіх екранів */
 .main > *{width:100%;max-width:none;margin-inline:0}
-/* етап 2: списки — на всю ширину від меню до краю; картки і тексти — до 960 px, від меню */
-.form-wrap{max-width:960px}
+/* списки — на всю ширину від меню до краю; картки, тексти і картка звернення — до 960 px по центру (етап 3) */
+.main > .form-page{display:flex;flex-direction:column;gap:20px;width:100%;max-width:960px;margin-inline:auto}
+.form-page .form-wrap,.form-page .eq-card{max-width:none}
 .footbar{max-width:none}
 /* телефон: компактна шапка, меню поверх сторінки, щільніші картки списків, нижня панель збереження */
 @media (max-width:760px){
@@ -604,7 +605,7 @@ tr.is-dragging{opacity:.45}
 .pill-prog{background:#E8EEF9;color:#1F3F7A;border-color:#BFCDEB}
 .pill-wait{background:#FBF1DC;color:#7A5410;border-color:#EBD3A0}
 .pill-closed{background:#EEEDE7;color:#5C5A50;border-color:#D7D4C7}
-.eq-card{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start;max-width:960px}
+.eq-card{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
 .eq-card .section{margin:0}
 .eq-side-box{display:flex;flex-direction:column;gap:14px;position:sticky;top:16px}
 .eq-msg{white-space:pre-wrap;margin:0;font-size:15px;line-height:1.55}

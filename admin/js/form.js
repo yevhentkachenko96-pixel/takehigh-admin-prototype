@@ -186,7 +186,7 @@
       var a = document.activeElement, focusId = a && root.contains(a) ? a.id : null, selS = null, selE = null;
       try { if (focusId && a.selectionStart != null) { selS = a.selectionStart; selE = a.selectionEnd; } } catch (e) {}
       var R = st.tried ? errorsFor(st.tried) : { E: {}, W: {} }, E = R.E;
-      var h = '<div style="display:flex;flex-direction:column;gap:20px;width:100%"><header class="page-head"><div class="head-left">';
+      var h = '<div class="form-page"><header class="page-head"><div class="head-left">';
       if (cfg.back) h += '<a class="crumb" href="' + esc(cfg.back.href) + '">' + icon('back', 'i-sm') + esc(cfg.back.label) + '</a>';
       h += '<div class="head-row"><h1>' + esc(st.title) + '</h1>' + (cfg.footer === 'save' ? '' : A.badge(st.status)) + '</div><span class="meta">' + esc(st.meta || '') + '</span></div></header><div class="form-wrap">';
       var bad = Object.keys(E);

@@ -42,7 +42,6 @@
     var p = { owner: v }; if (v && statusOf(e) === 'New') p.status = 'In progress';
     return { patch: p, act: v ? 'Відповідальний: ' + ownerName(v) : 'Відповідального знято' };
   }
-  function series(list, fn) { var i = 0, n = 0; function next() { if (i >= list.length) return Promise.resolve(n); var x = list[i++]; var r = fn(x); if (!r) return next(); return r.then(function () { n++; return next(); }); } return next(); }
 
   function reply(e) {
     // лист відкривається у вашій пошті; статус стає «Чекаємо відповіді»
@@ -61,8 +60,8 @@
   /* ---------- список звернень ---------- */
   function listScreen(root) {
     var ctl = A.list(root, {
-      title: 'Звернення', memoryKey: 'enquiries', titleKey: 'name', editLabel: 'Відкрити',
-      note: 'Заявки з форм сайту: «Get in touch» на Home і Partnership enquiry. Статус і відповідального можна змінити в картці або для кількох обраних одразу. Копія кожної зміни йде в Google-таблицю.',
+      title: 'Звернення', memoryKey: 'enquiries', titleKey: 'name', editLabel: 'Відкрити', selectable: false,
+      note: 'Заявки з форм сайту: «Get in touch» на Home і Partnership enquiry. Статус і відповідального змінюють у картці звернення. Копія кожної зміни йде в Google-таблицю.',
       emptyTitle: 'Звернень ще немає', emptyText: 'Тут зʼявляться заявки з форм сайту.',
       sort: { key: 'date', dir: 'desc' },
       search: { key: 'q', ph: 'Імʼя, компанія або email' },
@@ -73,17 +72,6 @@
       ],
       headButtons: [{ key: 'refresh', label: 'Оновити', run: function () { load(true).then(function () { ctl.render(); A.toast('Список оновлено'); }, A.saveError); } }],
       actions: ['edit', { key: 'reply', label: 'Відповісти листом', run: function (id) { var e = cache.find(function (x) { return x.id === id; }); if (e) reply(e).then(function () { ctl.render(); A.toast('Лист відкрито у вашій пошті. Статус: «Чекаємо відповіді»'); }, A.saveError); } }],
-      bulk: [
-        { key: 'status', label: 'Змінити статус', options: function () { return STATUSES; }, run: function (ids, v) {
-          return series(ids, function (id) { var e = cache.find(function (x) { return x.id === id; }); if (!e || statusOf(e) === v) return null; var p = statusPatch(e, v); return change(e, p.patch, p.act); })
-            .then(function (n) { return n ? 'Статус «' + SNAME[v] + '»: ' + n : 'Нічого не змінено'; });
-        } },
-        { key: 'owner', label: 'Призначити відповідального', options: function () { return [['-', 'Зняти відповідального']].concat(owners().map(function (m) { return [m.id, m.name]; })); }, run: function (ids, v) {
-          v = v === '-' ? '' : v;
-          return series(ids, function (id) { var e = cache.find(function (x) { return x.id === id; }); if (!e || (e.owner || '') === v) return null; var p = ownerPatch(e, v); return change(e, p.patch, p.act); })
-            .then(function (n) { return n ? (v ? 'Призначено ' + ownerName(v) + ': ' + n : 'Відповідального знято: ' + n) : 'Нічого не змінено'; });
-        } }
-      ],
       entityLabel: 'звернення', entityForms: ['звернення', 'звернень'],
       cols: [
         { key: 'date', label: 'Дата', sortable: true, nowrap: true, firstDir: 'desc' },
@@ -114,7 +102,7 @@
     if (!e) { A.notFound(root, 'Звернення не знайдено', '#/enquiries', 'До звернень'); return; }
     function draw() {
       var st = statusOf(e), src = e.source || {}, msgLabel = e.type === 'press' ? 'Message' : e.type === 'partnership' ? 'Objective' : 'Повідомлення';
-      var h = '<div style="display:flex;flex-direction:column;gap:20px;width:100%"><header class="page-head"><div class="head-left"><a class="crumb" href="#/enquiries">' + icon('back', 'i-sm') + 'Звернення</a>' +
+      var h = '<div class="form-page"><header class="page-head"><div class="head-left"><a class="crumb" href="#/enquiries">' + icon('back', 'i-sm') + 'Звернення</a>' +
         '<div class="head-row"><h1>' + esc(e.name || '—') + (e.company ? ' · ' + esc(e.company) : '') + '</h1><span class="pill pill-' + TONES[SNAME[st]] + '">' + esc(SNAME[st]) + '</span></div>' +
         '<span class="meta">' + esc(topicOf(e)) + (e.group ? ' · ' + esc(e.group) : '') + (e.direction ? ' · ' + esc(e.direction) : '') + ' · надіслано ' + esc(fdt(e.created)) + '</span></div>' +
         '<button class="btn btn-primary" type="button" data-eq="reply">' + icon('ext', 'i-sm') + 'Відповісти листом</button></header>';

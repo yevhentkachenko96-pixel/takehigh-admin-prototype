@@ -107,11 +107,11 @@
       h += '</header>';
       if (cfg.tabs) {
         var all0 = allRows();
-        // групи — випадним списком (не рядом кнопок), з кількістю записів у кожній
-        h += '<div class="group-pick"><label class="label" for="lst-tab">' + esc(cfg.tabsLabel || 'Група') + '</label><select class="select" id="lst-tab" data-act="tab-sel">' + cfg.tabs.map(function (tb) {
-          var n = all0.filter(function (r) { return (r.f ? r.f.tab : r.tab) === tb.key; }).length;
-          return '<option value="' + esc(tb.key) + '"' + (tb.key === mem.tab ? ' selected' : '') + '>' + esc(tb.label) + ' (' + n + ')</option>';
-        }).join('') + '</select></div>';
+        // групи — вкладками з кількістю записів (випадні списки — лише у формах створення і редагування)
+        h += '<div class="tabs" role="tablist" aria-label="' + esc(cfg.tabsLabel || 'Групи') + '">' + cfg.tabs.map(function (tb) {
+          var n = all0.filter(function (r) { return (r.f ? r.f.tab : r.tab) === tb.key; }).length, on = tb.key === mem.tab;
+          return '<button class="tab' + (on ? ' is-active' : '') + '" role="tab" type="button" aria-selected="' + on + '" data-act="tab" data-key="' + esc(tb.key) + '">' + esc(tb.label) + ' <span class="tab-n">' + n + '</span></button>';
+        }).join('') + '</div>';
       }
       var note = typeof cfg.note === 'function' ? cfg.note(mem.tab, manual(), active()) : cfg.note;
       if (note) h += '<p class="note" style="margin:0">' + icon('info') + '<span>' + esc(note) + '</span></p>';
@@ -286,7 +286,6 @@
       }
       var t = e.target.closest('[data-act]'); if (!t) return;
       var act = t.getAttribute('data-act');
-      if (act === 'tab-sel') { mem.tab = t.value; st.sel = {}; st.menuFor = null; render(); var ts = document.getElementById('lst-tab'); if (ts) ts.focus(); return; }
       if (act === 'bulk-sel' && t.value) {
         var bk = (cfg.bulk || []).find(function (b) { return b.key === t.getAttribute('data-key'); }), ids0 = Object.keys(st.sel), val0 = t.value;
         if (bk) Promise.resolve(bk.run(ids0, val0)).then(function (msg) { st.sel = {}; render(); if (msg) A.toast(msg); }, function (er) { render(); A.saveError(er); });

@@ -930,3 +930,9 @@ a.pt-card:hover{background:rgba(156,197,150,.14)}
 
 /* «не знайдено» */
 .notfound{min-height:70vh;display:grid;align-content:center}
+
+/* пункти без сторінки (Merch, Privacy, Cookies, Terms): видно як у прототипі, але не клікаються (етап 3) */
+.hnav .nolink{position:relative;padding-block:var(--s2);cursor:default}
+.ft-nav .nolink{display:flex;align-items:center;gap:var(--s3);padding:2px 0;font-stretch:62%;font-weight:700;font-size:24px;line-height:32px;text-transform:uppercase;cursor:default}
+.ft-legal .nolink{cursor:default}
+@media (max-width:860px){.ft-nav .nolink{font-size:20px;line-height:30px;padding:0}}
