@@ -81,6 +81,7 @@
   var current = null;
   A.route = function () {
     if (!A.data) return;
+    navOpen = false; // меню на телефоні закривається при будь-якому переході
     var hash = location.hash || '#/news';
     var parts = hash.replace(/^#\/?/, '').split('/').map(function (x) { try { return decodeURIComponent(x); } catch (e) { return x; } });
     var sec = parts[0] || 'news', rec = parts[1];
@@ -97,7 +98,7 @@
     if (sec === 'partnerships-texts') { current = { kind: 'form', ctl: s.partnershipsTexts(main) }; document.title = 'Тексти сторінки Partnerships · TAKE HIGH · Адмінка'; window.scrollTo(0, 0); return; }
     if (item[0] === 'partners') current = rec ? s.partnerCard(main, rec) : s.partners(main);
     else if (item[0] === 'cases') current = rec ? s.caseCard(main, rec) : s.cases(main);
-    else if (item[0] === 'enquiries') { if (rec) s.enquiry(main, rec); else s.enquiries(main); current = null; }
+    else if (item[0] === 'enquiries') { s.enquiries(main, rec); current = null; }
     else if (item[0] === 'members') current = rec ? s.memberCard(main, rec) : s.members(main);
     else if (item[0] === 'news') current = rec ? s.newsCard(main, rec) : s.news(main);
     else if (item[0] === 'tags') current = rec ? s.tagCard(main, rec) : s.tags(main);
@@ -123,9 +124,10 @@
     root.innerHTML = '<div class="state-box"><p class="meta">Завантаження даних з: ' + esc(window.THStorage.label) + '…</p></div>';
     A.load().then(function (r) {
       var box = root.querySelector('.state-box');
+      A.beginBatch();
       return A.migratePhotos(function (i, n) {
         if (box) box.innerHTML = '<h1 style="margin:0;font-size:20px">Переносимо фото в Dropbox</h1><p class="meta" style="margin:0">Перший вхід: фото сайту копіюються у ваш Dropbox. Фото ' + i + ' з ' + n + '. Не закривайте сторінку.</p><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + n + '" aria-valuenow="' + i + '"><span style="width:' + Math.round(i / n * 100) + '%"></span></div>';
-      }).then(function (m) { return A.applyCopyUpdates().then(function (c) { m.copy = c; return A.applyDataFixes(); }).then(function (x) { m.copy = (m.copy || 0) + (x || 0); return m; }); }).then(function (m) {
+      }).then(function (m) { return A.applyCopyUpdates().then(function (c) { m.copy = c; return A.applyDataFixes(); }).then(function (x) { m.copy = (m.copy || 0) + (x || 0); return A.endBatch(); }).then(function () { return m; }); }, function (e) { A.endBatch(); throw e; }).then(function (m) {
         window.addEventListener('hashchange', A.route);
         A.route();
         if (m.done) A.toast('Фото перенесено в Dropbox: ' + m.done);

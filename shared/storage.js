@@ -11,7 +11,7 @@
   var IMG_DIR = DBX.imageDir || '/img';
   var CACHE_KEY = 'th-gh-cache-v1';
   var LOCAL_KEY = 'th-gh-local-v1';
-  var POLL_MS = CFG.pollMs || 8000;
+  var POLL_MS = window.TH_POLL_MS || CFG.pollMs || 8000;
 
   var bc = null;
   try { bc = new BroadcastChannel('th-gh-data'); } catch (e) {}
@@ -22,6 +22,8 @@
 
   /* ---------- Dropbox ---------- */
   var token = null, tokenExp = 0, tokenWait = null;
+  var TOKEN_KEY = 'th-dbx-token';
+  try { var tk = JSON.parse(sessionStorage.getItem(TOKEN_KEY) || 'null'); if (tk && tk.k === DBX.appKey && tk.exp > Date.now() + 60000) { token = tk.t; tokenExp = tk.exp; } } catch (e) {}
   function getToken() {
     if (token && Date.now() < tokenExp - 60000) return Promise.resolve(token);
     if (tokenWait) return tokenWait;
@@ -35,7 +37,12 @@
         if (!r.ok) return r.text().then(function (t) { throw StoreError('auth', 'Dropbox не прийняв ключі доступу', t); });
         return r.json();
       })
-      .then(function (j) { token = j.access_token; tokenExp = Date.now() + (j.expires_in || 14400) * 1000; tokenWait = null; return token; },
+      .then(function (j) {
+        token = j.access_token; tokenExp = Date.now() + (j.expires_in || 14400) * 1000; tokenWait = null;
+        // токен доступу живе ~4 год: зберігаємо на час вкладки, щоб не просити новий при кожному відкритті сторінки
+        try { sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ k: DBX.appKey, t: token, exp: tokenExp })); } catch (e) {}
+        return token;
+      },
             function (e) { tokenWait = null; throw e.code ? e : StoreError('network', 'Немає звʼязку з Dropbox', String(e)); });
     return tokenWait;
   }
@@ -49,7 +56,7 @@
         var sc = (j && j.error && j.error.required_scope) || (summary.match(/required[_ ]scope\W+([a-z.]+)/i) || [])[1] || '';
         throw StoreError('scope', 'У застосунку Dropbox не ввімкнено дозвіл ' + (sc || '(див. консоль)') + '. Увімкніть його на вкладці Permissions і отримайте refresh token заново', summary);
       }
-      if (r.status === 401) { token = null; throw StoreError('auth', 'Dropbox не прийняв ключі доступу', summary); }
+      if (r.status === 401) { token = null; try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {} throw StoreError('auth', 'Dropbox не прийняв ключі доступу', summary); }
       if (r.status === 429) throw StoreError('rate', 'Забагато запитів до Dropbox, спробуйте за хвилину', summary);
       throw StoreError('dropbox', what + ': помилка Dropbox ' + r.status, summary);
     });
@@ -165,8 +172,19 @@
       return page(r, []);
     }).then(function (files) {
       files.sort(function (a, b) { return a.name < b.name ? 1 : -1; });
-      return Promise.all(files.slice(0, limit || 200).map(function (f) { return dbxDownload(f.path_lower).catch(function () { return null; }); }));
+      return Promise.all(files.slice(0, limit || 200).map(function (f) { return dbxDownload(f.path_lower).then(function (r) { r._path = f.path_lower; return r; }).catch(function () { return null; }); }));
     }).then(function (L) { return L.filter(Boolean); });
+  }
+  // оновлення звернення (статус, відповідальний…): перезаписуємо той самий файл
+  function dbxEnquiryUpdate(rec) {
+    var path = rec._path, body = Object.assign({}, rec); delete body._path;
+    return getToken().then(function (t) {
+      return fetch('https://content.dropboxapi.com/2/files/upload', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/octet-stream',
+          'Dropbox-API-Arg': argHeader({ path: path, mode: { '.tag': 'overwrite' }, autorename: false, mute: true }) },
+        body: JSON.stringify(body)
+      });
+    }).then(function (r) { if (!r.ok) return dbxErr(r, 'Збереження звернення'); return rec; });
   }
   function localEnquiries() { try { return JSON.parse(lsGet(ENQ_LOCAL) || '[]'); } catch (e) { return []; } }
 
@@ -189,7 +207,15 @@
   function notify(data, rev, from) { lastRev = rev; listeners.forEach(function (cb) { try { cb(data, rev, from); } catch (e) { console.error(e); } }); }
   function remember(data) { lsSet(CACHE_KEY, JSON.stringify(data)); }
 
+  // Фото вайрфрейму, перенесені в Dropbox (wf-<ключ>.<ext>), беремо з копій на сайті — це швидше за посилання Dropbox
+  function localPhoto(u) {
+    if (!u || typeof u !== 'string') return null;
+    var m = u.match(/\/wf-([A-Za-z0-9_\-]+)\.(?:jpe?g|png|svg|webp)(?:[?#]|$)/i), P = window.TH_PHOTOS || {};
+    return m && P[m[1]] ? m[1] : null;
+  }
+
   var THStorage = {
+    localPhoto: localPhoto,
     mode: MODE,
     label: MODE === 'dropbox' ? 'Dropbox' : 'цей браузер (без Dropbox)',
     load: function () {
@@ -223,6 +249,11 @@
     saveEnquiry: function (rec) {
       if (MODE === 'dropbox') return dbxEnquirySave(rec);
       var L = localEnquiries(); L.unshift(rec);
+      return lsSet(ENQ_LOCAL, JSON.stringify(L)) ? Promise.resolve(rec) : Promise.reject(StoreError('quota', 'Браузеру не вистачає місця', ''));
+    },
+    updateEnquiry: function (rec) {
+      if (MODE === 'dropbox') return rec._path ? dbxEnquiryUpdate(rec) : Promise.reject(StoreError('not_found', 'Файл звернення не знайдено', ''));
+      var L = localEnquiries().map(function (x) { return x.id === rec.id ? rec : x; });
       return lsSet(ENQ_LOCAL, JSON.stringify(L)) ? Promise.resolve(rec) : Promise.reject(StoreError('quota', 'Браузеру не вистачає місця', ''));
     },
     listEnquiries: function (limit) {

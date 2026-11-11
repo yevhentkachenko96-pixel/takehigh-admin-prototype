@@ -39,6 +39,8 @@ jobs:
           mkdir _site
           cp -r index.html config.js admin site shared _site/
           touch _site/.nojekyll
+          # номер версії до скриптів і стилів: браузер бере новий код одразу після публікації
+          sed -i "s/__V__/${GITHUB_SHA::7}/g" _site/admin/index.html _site/site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

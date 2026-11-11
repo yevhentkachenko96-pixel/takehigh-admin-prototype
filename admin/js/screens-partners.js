@@ -151,54 +151,6 @@
     });
   };
 
-  /* ---------- Звернення (лише перегляд; статус і подальша робота — у Google-таблиці) ---------- */
-  var enq = null;
-  function loadEnq() { return window.THStorage.listEnquiries(300).then(function (L) { enq = L; return L; }); }
-  var fdt = function (iso) { var d = new Date(iso); if (isNaN(d)) return iso || ''; var z = function (n) { return ('0' + n).slice(-2); }; return z(d.getDate()) + '.' + z(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); };
-  var TYPE = { partnership: 'Partnership', press: 'Press' };
-  A.screens.enquiries = function (root) {
-    function show() {
-      return A.list(root, {
-        title: 'Звернення', memoryKey: 'enquiries', selectable: false, actions: [],
-        note: 'Звернення з форм сайту. Тут лише перегляд: статус, відповідальний і наступна дія ведуться в Google-таблиці.',
-        emptyTitle: 'Звернень ще немає', emptyText: 'Тут зʼявляться заявки з форми Partnership enquiry на сторінці Partnerships.',
-        sort: { key: 'date', dir: 'desc' },
-        cols: [
-          { key: 'date', label: 'Дата', sortable: true, nowrap: true, firstDir: 'desc' },
-          { key: 'name', label: 'Імʼя', kind: 'link', sortable: true },
-          { key: 'company', label: 'Компанія', sortable: true },
-          { key: 'email', label: 'Email' },
-          { key: 'type', label: 'Тип', sortable: true },
-          { key: 'direction', label: 'Напрям', sortable: true }
-        ],
-        rows: function () {
-          return (enq || []).map(function (e) {
-            return { id: e.id, href: '#/enquiries/' + encodeURIComponent(e.id), c: { date: fdt(e.created), name: e.name, company: e.company, email: e.email, type: TYPE[e.type] || e.type, direction: e.direction }, s: { date: e.created } };
-          });
-        }
-      });
-    }
-    root.innerHTML = '<div class="state-box"><p class="meta">Завантаження звернень…</p></div>';
-    loadEnq().then(show, function (e) { root.innerHTML = '<div class="state-box"><h1 style="margin:0;font-size:20px">Не вдалося завантажити звернення</h1><p style="margin:0">' + A.esc(e.message || '') + '</p></div>'; });
-  };
-  A.screens.enquiry = function (root, id) {
-    function show() {
-      var e = (enq || []).find(function (x) { return x.id === id; });
-      if (!e) { A.notFound(root, 'Звернення не знайдено', '#/enquiries', 'До звернень'); return; }
-      var row = function (k, v) { return v ? '<div class="kv"><dt>' + A.esc(k) + '</dt><dd>' + A.esc(v) + '</dd></div>' : ''; };
-      root.innerHTML = '<div style="display:flex;flex-direction:column;gap:20px;width:100%"><header class="page-head"><div class="head-left"><a class="crumb" href="#/enquiries">' + A.icon('back', 'i-sm') + 'Звернення</a>' +
-        '<div class="head-row"><h1>' + A.esc(e.name) + (e.company ? ' · ' + A.esc(e.company) : '') + '</h1></div><span class="meta">' + A.esc(fdt(e.created)) + ' · ' + A.esc(TYPE[e.type] || e.type) + '</span></div></header>' +
-        '<section class="section"><dl class="kv-list">' + row('Email', e.email) + row('Напрям', e.direction) + row('Звідки', [e.source && e.source.page, e.source && e.source.utm].filter(Boolean).join(' · ')) +
-        row('Згода з Privacy Notice', e.consent ? 'Так · ' + fdt(e.consent.at) + ' · версія ' + e.consent.version : 'Ні') + row('Статус', e.status) + '</dl>' +
-        '<h2 style="font-size:16px;margin:16px 0 8px">' + (e.type === 'press' ? 'Message' : 'Objective') + '</h2><p class="enq-text">' + A.esc(e.message) + '</p>' +
-        (e.email ? '<p><a class="btn btn-secondary" href="mailto:' + A.esc(e.email) + '">Написати ' + A.esc(e.email) + '</a></p>' : '') + '</section></div>';
-      return { kind: 'view' };
-    }
-    if (enq) return show();
-    root.innerHTML = '<div class="state-box"><p class="meta">Завантаження…</p></div>';
-    loadEnq().then(show, function (er) { root.innerHTML = '<div class="state-box"><p>' + A.esc(er.message || '') + '</p></div>'; });
-  };
-
   /* ---------- Тексти сторінки Partnerships ---------- */
   A.screens.partnershipsTexts = function (root) {
     var P = (A.data.pages || {}).partnerships || {};
@@ -214,7 +166,7 @@
           { id: 'intro', type: 'textarea', label: 'Вступ', req: true, max: 800, rows: 8, hint: 'Порожній рядок ділить текст на два абзаци', value: P.intro || '' }
         ] },
         { title: 'Напрями', rows: true, desc: 'Блок під вступом: 5 карток без фото. Назви напрямів задані в коді, тут — короткий опис кожного, до 100 символів.', fields: dirFields },
-        { title: 'Як будуємо партнерство', desc: 'Блок після напрямів: від 3 до 6 кроків з номером. Порядок на сайті — як тут, змінюється стрілками ↑ ↓.', fields: [
+        { title: 'Як будуємо партнерство', desc: 'Блок після напрямів: від 3 до 6 кроків з номером. Порядок на сайті — як тут: перетягніть крок за ручку ⠿ або натисніть на неї і використайте стрілки ↑ ↓.', fields: [
           { id: 'steps', type: 'rep', label: 'Кроки', req: true, min: 3, max: 6, itemName: 'кроки', itemName1: 'крок', addText: 'Додати крок',
             fields: [{ id: 'title', label: 'Назва', req: true, max: 40, w: 'minmax(0,1fr)' }, { id: 'text', label: 'Текст', req: true, max: 200, type: 'textarea', w: 'minmax(0,2.2fr)' }],
             value: (P.steps || []).map(function (s) { return { title: s.title || '', text: s.text || '' }; }) }

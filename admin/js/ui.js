@@ -53,9 +53,11 @@
   A.newId = function (p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); };
 
   // Адреса фото: ключ з вайрфрейму → мініатюра; завантажене → як є
-  A.img = function (k) {
+  // small: мініатюра для списків (менші файли — швидше відкриваються списки)
+  A.img = function (k, small) {
     if (!k || typeof k !== 'string') return null;
-    if (/^(data:|blob:|https?:)/.test(k)) return k;
+    var lk = window.THStorage && THStorage.localPhoto(k); if (lk) k = lk;
+    if (/^(data:|blob:|https?:)/.test(k)) { var th = small !== false && A.data && A.data.thumbs && A.data.thumbs[k]; return th || k; }
     var t = window.TH_THUMBS || {};
     if (t[k]) return '../shared/' + t[k];
     var p = window.TH_PHOTOS || {};

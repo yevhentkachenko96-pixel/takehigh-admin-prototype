@@ -11,6 +11,16 @@
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
   };
 
+  var leaflet = null;
+  A.loadLeaflet = function () {
+    if (window.L) return Promise.resolve();
+    if (leaflet) return leaflet;
+    leaflet = new Promise(function (res, rej) {
+      var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'vendor/leaflet/leaflet.css'; document.head.appendChild(css);
+      var js = document.createElement('script'); js.src = 'vendor/leaflet/leaflet.js'; js.onload = function () { res(); }; js.onerror = function () { leaflet = null; rej(); }; document.head.appendChild(js);
+    });
+    return leaflet;
+  };
   A.form = function (root, cfg) {
     var fields = [];
     cfg.sections.forEach(function (s) { s.fields.forEach(function (f) { fields.push(f); }); });
@@ -104,9 +114,9 @@
               return '<div class="rep-f' + (over || emp ? ' is-invalid' : '') + '"><label class="rep-lab" for="' + sid + '">' + esc(sf.label) + ' ' + (i + 1) + '</label>' + inp +
                 '<span class="counter' + (over ? ' over' : '') + '" id="cn-' + sid + '">' + sv.length + ' / ' + sf.max + '</span></div>';
             }).join('');
-          return '<div class="rep-item"><span class="rep-num" aria-hidden="true">' + (i < 9 ? '0' : '') + (i + 1) + '</span><div class="rep-fields" style="grid-template-columns:' + cols + '">' + fh + '</div><span class="rep-tools">' +
-            '<button class="icon-btn" type="button" data-act="rep-up" data-f="' + f.id + '" data-i="' + i + '" aria-label="Вище: ' + (f.itemName1 || 'пункт') + ' ' + (i + 1) + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
-            '<button class="icon-btn" type="button" data-act="rep-down" data-f="' + f.id + '" data-i="' + i + '" aria-label="Нижче: ' + (f.itemName1 || 'пункт') + ' ' + (i + 1) + '"' + (i === x.length - 1 ? ' disabled' : '') + '>↓</button>' +
+          return '<div class="rep-item" data-rep-item="' + f.id + '" data-i="' + i + '"><span class="rep-lead"><button class="drag" type="button" data-rep-drag="' + f.id + '" data-i="' + i + '" aria-label="Перемістити: ' + (f.itemName1 || 'пункт') + ' ' + (i + 1) + '. Стрілки вгору або вниз змінюють порядок" title="Перетягніть або натисніть і використайте стрілки ↑↓">' + icon('grip', 'i-sm') + '</button><span class="rep-num" aria-hidden="true">' + (i < 9 ? '0' : '') + (i + 1) + '</span></span><div class="rep-fields" style="grid-template-columns:' + cols + '">' + fh + '</div><span class="rep-tools">' +
+            '<button class="icon-btn rep-mv" type="button" data-act="rep-up" data-f="' + f.id + '" data-i="' + i + '" aria-label="Вище: ' + (f.itemName1 || 'пункт') + ' ' + (i + 1) + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+            '<button class="icon-btn rep-mv" type="button" data-act="rep-down" data-f="' + f.id + '" data-i="' + i + '" aria-label="Нижче: ' + (f.itemName1 || 'пункт') + ' ' + (i + 1) + '"' + (i === x.length - 1 ? ' disabled' : '') + '>↓</button>' +
             '<button class="icon-btn btn-danger-text" type="button" data-act="rep-x" data-f="' + f.id + '" data-i="' + i + '" aria-label="Видалити: ' + (f.itemName1 || 'пункт') + ' ' + (i + 1) + '"' + (f.min && x.length <= f.min ? ' disabled title="Мінімум ' + f.min + '"' : ' title="Видалити"') + '>' + icon('x', 'i-sm') + '</button></span></div>';
         }).join('') + '<div><button class="btn btn-secondary btn-sm" type="button" data-act="rep-add" data-f="' + f.id + '"' + (f.max && x.length >= f.max ? ' disabled' : '') + '>' + icon('plus', 'i-sm') + esc(f.addText || 'Додати') + '</button>' +
           (f.max ? ' <span class="hint" style="font-size:13px">' + x.length + ' з ' + (f.min ? f.min + '–' : '') + f.max + '</span>' : '') + '</div></div>';
@@ -240,6 +250,7 @@
       if (file.size > limit) { st.photo[f.id] = { state: 'error', name: file.name, meta: ext + ' · ' + size, msg: 'Файл більший за ' + (f.limit || 10) + ' МБ' }; render(); return; }
       st.photo[f.id] = { state: 'up', name: file.name }; render();
       A.shrink(file).then(function (blob) { return window.THStorage.uploadImage(blob, file.name); }).then(function (url) {
+        A.thumbFor(file, url);
         st.vals[f.id] = url; st.photo[f.id] = { state: 'done', url: url, name: file.name, meta: ext + ' · ' + size }; render();
       }, function (e) {
         if (e && e.detail) console.warn('[TAKE HIGH] завантаження фото:', e.message, e.detail);
@@ -299,8 +310,12 @@
       });
       q.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); search(); } else if (e.key === 'Escape') res.hidden = true; });
       if (!window.L) {
-        el.querySelector('.geo-map').innerHTML = '<p class="meta" style="padding:16px;margin:0">Карта не завантажилась (немає звʼязку з OpenStreetMap). Решта картки працює, точку можна додати пізніше.</p>';
-        el.querySelector('.geo-search').hidden = true;
+        // бібліотека карти вантажиться лише тоді, коли в картці є карта
+        el.querySelector('.geo-map').innerHTML = '<p class="meta" style="padding:16px;margin:0">Завантаження карти…</p>';
+        A.loadLeaflet().then(function () { el.querySelector('.geo-map').innerHTML = ''; if (document.contains(el)) mountMaps(); }, function () {
+          el.querySelector('.geo-map').innerHTML = '<p class="meta" style="padding:16px;margin:0">Карта не завантажилась. Решта картки працює, точку можна додати пізніше.</p>';
+          el.querySelector('.geo-search').hidden = true;
+        });
       }
       return m;
     }
@@ -409,8 +424,36 @@
       // фокус пішов в інше поле з клавіатури (Tab); клік мишею обробляє outside()
       setTimeout(function () { var a = document.activeElement; if (st.open && a && a !== document.body && root.contains(a) && !a.closest('#fw-' + st.open)) closeSuggest(); }, 0);
     };
+    // перетягування пунктів (кроків) за ручку, як у списках; з клавіатури — стрілки на ручці
+    function repMove(fid, from, to) {
+      var arr = st.vals[fid]; if (to < 0 || to >= arr.length || to === from) return;
+      var it = arr.splice(from, 1)[0]; arr.splice(to, 0, it); render();
+      var h = root.querySelector('[data-rep-drag="' + fid + '"][data-i="' + to + '"]'); if (h) h.focus();
+    }
+    root.onpointerdown = function (e) {
+      var hnd = e.target.closest('[data-rep-drag]'); if (!hnd || e.button > 0) return;
+      e.preventDefault();
+      var fid = hnd.getAttribute('data-rep-drag'), from = +hnd.getAttribute('data-i'), wrap = hnd.closest('.rep');
+      var items = Array.prototype.slice.call(wrap.querySelectorAll('[data-rep-item]')), row = items[from], to = from, moved = false, y0 = e.clientY;
+      row.classList.add('is-dragging'); try { hnd.setPointerCapture(e.pointerId); } catch (x) {}
+      var line = document.createElement('div'); line.className = 'drop-line'; wrap.style.position = 'relative'; wrap.appendChild(line); line.hidden = true;
+      function mv(ev) {
+        if (Math.abs(ev.clientY - y0) > 4) moved = true; if (!moved) return;
+        to = items.length; for (var k = 0; k < items.length; k++) { var b = items[k].getBoundingClientRect(); if (ev.clientY < b.top + b.height / 2) { to = k; break; } }
+        var wr = wrap.getBoundingClientRect(), ref = to < items.length ? items[to].getBoundingClientRect().top - 4 : items[items.length - 1].getBoundingClientRect().bottom + 2;
+        line.hidden = false; line.style.top = (ref - wr.top) + 'px';
+      }
+      function up() {
+        hnd.removeEventListener('pointermove', mv); hnd.removeEventListener('pointerup', up); hnd.removeEventListener('pointercancel', up);
+        row.classList.remove('is-dragging'); line.remove();
+        if (!moved) { hnd.focus(); return; }
+        repMove(fid, from, to > from ? to - 1 : to);
+      }
+      hnd.addEventListener('pointermove', mv); hnd.addEventListener('pointerup', up); hnd.addEventListener('pointercancel', up);
+    };
     root.onkeydown = function (e) {
       var t = e.target;
+      if (t.dataset && t.dataset.repDrag && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); repMove(t.dataset.repDrag, +t.dataset.i, +t.dataset.i + (e.key === 'ArrowUp' ? -1 : 1)); return; }
       if (t.dataset && t.dataset.act === 'ftab' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
         e.preventDefault(); var nT = cfg.sections.length; st.tab = (st.tab + (e.key === 'ArrowRight' ? 1 : nT - 1)) % nT; render(); var tb2 = document.getElementById('ft-' + st.tab); if (tb2) tb2.focus(); return;
       }

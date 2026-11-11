@@ -70,6 +70,7 @@
   function fd(iso) { var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '.' + m[2] + '.' + m[1] : '[Date]'; }
   function img(k) {
     if (!k || typeof k !== 'string') return null;
+    var lk = window.THStorage && THStorage.localPhoto(k); if (lk) k = lk;
     if (/^(data:|blob:|https?:)/.test(k)) return k;
     var m = window.TH_PHOTOS || {};
     return m[k] ? '../shared/' + m[k] : null;

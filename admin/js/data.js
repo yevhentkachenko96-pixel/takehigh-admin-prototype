@@ -40,14 +40,24 @@
   function statusAct(from, to) { return to === 'pub' ? 'Опубліковано' : to === 'arch' ? 'Переміщено в архів' : (from === 'pub' ? 'Знято з публікації' : 'Змінено статус'); }
 
   // Застосувати зміну до копії даних і зберегти. Якщо дані в сховищі вже інші — не перезаписуємо.
+  // Пакет змін: усі виправлення під час входу застосовуються до однієї копії і зберігаються одним запитом
+  var batch = null;
+  A.beginBatch = function () { batch = { D: clone(A.data), changed: false }; };
+  A.endBatch = function () {
+    var b = batch; batch = null;
+    if (!b || !b.changed) return Promise.resolve(false);
+    return A.commit(function (D) { Object.keys(D).forEach(function (k) { delete D[k]; }); Object.keys(b.D).forEach(function (k) { D[k] = b.D[k]; }); return true; });
+  };
   A.commit = function (mutate) {
+    if (batch) { var r0 = mutate(batch.D); if (r0 !== false) batch.changed = true; return Promise.resolve(r0); }
     if (A.stale) return Promise.reject({ code: 'conflict', message: 'Дані вже змінив хтось інший' });
     var D = clone(A.data);
     var res = mutate(D);
     if (res === false) return Promise.resolve(false);
+    var pend = A.pendingThumbs; if (pend && Object.keys(pend).length) D.thumbs = Object.assign({}, D.thumbs || {}, pend);
     A.busy = true;
     return S.save(D, A.rev).then(function (rev) {
-      A.busy = false; A.data = D; A.rev = rev; return res;
+      A.busy = false; A.data = D; A.rev = rev; if (pend) A.pendingThumbs = null; return res;
     }, function (e) {
       A.busy = false;
       if (e && e.code === 'conflict') { A.stale = true; if (A.onStale) A.onStale(); }
@@ -327,14 +337,19 @@
   };
 
   // Зменшує великі фото до 1600 px перед завантаженням
-  A.shrink = function (file) {
+  // Мініатюра для списків адмінки (480 px). Лише для Dropbox: у локальному режимі фото і так у браузері
+  A.thumbFor = function (file, url) {
+    if (S.mode !== 'dropbox' || !/^image\/(jpeg|png|webp)$/.test(file.type)) return Promise.resolve(null);
+    return A.shrink(file, 480).then(function (b) { return S.uploadImage(b, 'thumb-' + (file.name || 'photo')); }).then(function (t) { A.pendingThumbs = A.pendingThumbs || {}; A.pendingThumbs[url] = t; return t; }, function () { return null; });
+  };
+  A.shrink = function (file, maxSide) {
     return new Promise(function (resolve) {
       if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { resolve(file); return; }
       var url = URL.createObjectURL(file); var im = new Image();
       im.onload = function () {
         try {
-          var k = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight));
-          if (k >= 1 && file.size < 900000) { URL.revokeObjectURL(url); resolve(file); return; }
+          var k = Math.min(1, (maxSide || 1600) / Math.max(im.naturalWidth, im.naturalHeight));
+          if (k >= 1 && file.size < (maxSide ? 200000 : 900000)) { URL.revokeObjectURL(url); resolve(file); return; }
           var c = document.createElement('canvas'); c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
           c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
           var png = file.type === 'image/png';
